@@ -374,12 +374,10 @@ def main(args):
     import math
     import time
 
-    #import shorah_snv
-
     in_bam = args.b
     in_fasta = args.f
-    win_length = args.w
-    win_shifts = args.win_shifts
+    win_length = args.w # TODO remove this var
+    win_shifts = args.win_shifts # TODO remove this var
     region = args.r
     max_coverage = args.max_coverage
     alpha = args.a
@@ -639,7 +637,7 @@ def main(args):
     ph.close()
 
     logging.info('running snv.py')
-    args.increment = win_length // win_shifts
+    args.increment = win_length // win_shifts # TODO remove dependency on these vars
     shorah_snv.main(args)
 
     # tidy snvs

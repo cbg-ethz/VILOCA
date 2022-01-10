@@ -241,7 +241,7 @@ int fil(std::string in_bam, float sigma, int max_depth, bool amplicon_mode, bool
     bam_hdr_t* header = sam_hdr_read(inFile);
     if (idx == NULL) {
         std::cerr << "BAM indexing file is not available." << std::endl;
-        throw std::exception();
+        return 2;
     }
 
     std::ifstream fl ("SNV.txt", std::ios_base::in);
