@@ -28,8 +28,8 @@ def test_equispaced_wrong_incr():
 def test_primer_init():
     strategy = tiling.PrimerTilingStrategy("./data_1/scheme.insert.bed")
     window_tilings = strategy.get_window_tilings()
-    first = window_tilings[1]
-    last = window_tilings[-2]
+    first = window_tilings[0]
+    last = window_tilings[-1]
 
     assert first[0] == 34
     assert first[1] == 373
@@ -40,4 +40,4 @@ def test_primer_init():
     assert type(first).__name__ == 'tuple'
     assert type(last).__name__ == 'tuple'
 
-    assert len(window_tilings) == 93
+    assert len(window_tilings) == 31

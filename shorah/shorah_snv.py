@@ -291,7 +291,14 @@ def getSNV(ref, segCov, incr, window_thresh=0.9):
         if single_window:
             break
 
-    pprint(snpD)
+    cov_file.close()
+
+    with open('coverage.txt') as cov_file, open('raw_snv.tsv', 'w') as f:
+        for i in cov_file:
+            snp = parseWindow(i, ref, window_thresh)
+            for k, val in sorted(snp.items()):
+                f.write('\t'.join(map(str, [val.chrom, val.pos, val.ref, val.var, val.freq, val.support])) + "\n")
+
     return snpD
 
 
@@ -368,15 +375,17 @@ def printRaw(snpD2, incr):
     out1.close()
 
 
-def sb_filter(in_bam, sigma, amplimode="", drop_indels="",
-              max_coverage=100000): # TODO max_coverage is 10 times higher than in Cpp
+def sb_filter(in_bam, file_to_append, out_file_prefix, sigma, amplimode="", 
+              drop_indels="", max_coverage=100000): # TODO max_coverage is 10 times higher than in Cpp
     """run strand bias filter calling the external program 'fil'
     """
     
     logging.debug('Running fil')
-    logging.debug(f"{in_bam} {sigma} {max_coverage}")
+    logging.debug(f"{in_bam} {file_to_append} {out_file_prefix} {sigma} {max_coverage}")
     retcode = libshorah.fil(
         in_bam, 
+        file_to_append,
+        out_file_prefix,
         sigma, 
         max_coverage,
         False if amplimode == "" else True, 
@@ -444,14 +453,20 @@ def main(args):
     d = ' -d' if ignore_indels else ''
     a = ' -a' if increment == 1 else ''
     # run strand bias filter, output in SNVs_%sigma.txt
-    retcode_m = sb_filter(bam_file, sigma, amplimode=a, drop_indels=d,
+    retcode_m = sb_filter(bam_file, "raw_snv.tsv", "raw_snvs_", sigma, amplimode=a, drop_indels=d,
                           max_coverage=max_coverage)
-    if retcode_m != 0:
+    retcode_n = sb_filter(bam_file, "SNV.txt", "SNVs_", sigma, amplimode=a, drop_indels=d,
+                          max_coverage=max_coverage)
+
+    if retcode_m != 0 and retcode_n != 0:
         logging.error('sb_filter exited with error %d', retcode_m)
         sys.exit()
-
+    
     # parse the p values from SNVs*txt file
-    snpFile = glob.glob('SNVs*.txt')[0]  # takes the first file only!!!
+    # TODO rewrite to tsv below this line
+    snpFile = glob.glob('SNVs*.*')[0]  # takes the first file only!!!
+    logging.debug(f"Selected file: {snpFile}")
+
     write_list = []
     p_vals_m = []
     x = 0
@@ -459,7 +474,7 @@ def main(args):
         parts = s.rstrip().split('\t')
         p1 = parts[-1]
         p_vals_m.append((float(p1), x))
-        write_list.append(s.rstrip().split('\t'))
+        write_list.append(parts)
         x += 1
 
     # sort p values, correct with Benjamini Hochberg and append to output

@@ -13,6 +13,8 @@ PYBIND11_MODULE(libshorah, m) {
 
     m.def("fil", &fil, 
         "in_bam"_a, 
+        "file_to_append"_a,
+        "out_file_prefix"_a,
         py::arg("sigma") = 0.01, 
         py::arg("max_depth") = 10000, 
         py::arg("amplicon_mode") = false, 
@@ -20,6 +22,8 @@ PYBIND11_MODULE(libshorah, m) {
     R"pbdoc(
         Args:
             in_bam:
+            file_to_append: A tsv file that fil will add columns to at the very left. 
+            out_file_prefix: Prefix of the output tsv file.
             sigma:
             max_depth:
             amplicon_mode: Toggle modes. Shotgun is the default.

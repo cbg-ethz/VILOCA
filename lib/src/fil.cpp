@@ -220,7 +220,10 @@ StrandCounts _count_matching_substitutions(htsFile* inFile, bam_hdr_t* header,
 }
 
 
-int fil(std::string in_bam, float sigma, int max_depth, bool amplicon_mode, bool drop_snv) {
+int fil(const std::string in_bam, const std::string file_to_append, 
+    const std::string out_file_prefix, const float sigma, const int max_depth, 
+    const bool amplicon_mode, const bool drop_snv
+) {
     paramstruct_t params = { 
         max_depth,
         sigma,
@@ -244,7 +247,7 @@ int fil(std::string in_bam, float sigma, int max_depth, bool amplicon_mode, bool
         return 2;
     }
 
-    std::ifstream fl ("SNV.txt", std::ios_base::in);
+    std::ifstream fl (file_to_append, std::ios_base::in); 
     if (fl.fail()) {
         std::cerr << "Failed to open SNV file." << std::endl;
         return 3;
@@ -252,7 +255,7 @@ int fil(std::string in_bam, float sigma, int max_depth, bool amplicon_mode, bool
     std::string str_buf;
 
     std::ostringstream oss_fn;
-    oss_fn << "SNVs_" << std::fixed << std::setprecision(6) << params.sig << ".txt";
+    oss_fn << out_file_prefix << std::fixed << std::setprecision(6) << params.sig << ".tsv";
     std::string filename = oss_fn.str();
     std::ofstream snpsOut;
     snpsOut.open(filename, std::ios::out);
