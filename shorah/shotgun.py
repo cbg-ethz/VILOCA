@@ -192,8 +192,8 @@ def run_dpm(run_setting):
             logging.debug(f'{filein} - Run finished successfully.')
         else: 
             logging.error(f'{filein} - Run failed with return code %i.', retcode)
-    except:
-        logging.error(f'{filein} - Run failed.')
+    except Exception as e:
+        logging.error(f'{filein} - Run failed: {e}')
     
 
     return
