@@ -373,6 +373,7 @@ def main(args):
     import glob
     import math
     import time
+    import pysam
 
     in_bam = args.b
     in_fasta = args.f
@@ -416,10 +417,28 @@ def main(args):
             raise NotImplementedError('This argument was deprecated.')
         b2w_logging((in_bam, in_fasta, win_length, incr, win_min_ext *
                        win_length, max_c, cov_thrd, region, ignore_indels))
-        if path_insert_file == None:
+
+        if path_insert_file == None and region == "": # special case if no region defined 
+            samfile = pysam.AlignmentFile(
+                in_bam, 
+                "r", # auto-detect bam/cram (rc)
+                reference_filename=in_fasta,
+                threads=1
+            )
+            if samfile.nreferences != 1:
+                raise NotImplementedError("There are multiple references in this alignment file.")
+            strategy = tiling.EquispacedTilingStrategy(
+                f"{samfile.references[0]}:1-{samfile.lengths[0]}", 
+                win_length, 
+                incr, 
+                False, 
+                True
+            )
+        elif path_insert_file == None: 
             strategy = tiling.EquispacedTilingStrategy(region, win_length, incr, True)
         else:
             strategy = tiling.PrimerTilingStrategy(path_insert_file)
+
         logging.info(f"Using tiling strategy: {type(strategy).__name__}")
 
         b2w.build_windows(

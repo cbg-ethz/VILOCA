@@ -53,17 +53,25 @@ class EquispacedTilingStrategy(TilingStrategy):
             assumes that the `incr` is always one third of the `window_length`.
             This leads to issues on the boundary. Set to `Ture` for testing vs. 
             the old implementation. 
+        use_full_reference_as_region: Assume that the region string includes the 
+            reference genome in its full length.   
     """
 
     def __init__(self, region, window_length=201, incr=201//3, 
-        exact_conformance_overlap_at_boundary=False) -> None:
+        exact_conformance_overlap_at_boundary=False,
+        use_full_reference_as_region=False) -> None:
 
         if window_length%incr != 0 or incr <= 0 or window_length <= 0:
             raise ValueError("window_length has to be divisible by incr")
+        if region == "":
+            raise ValueError("empty region string is not allowed, use e.g. chr1:50-150")
+        if exact_conformance_overlap_at_boundary == True and use_full_reference_as_region == True:
+            raise ValueError("this combination of arguments is not allowed")
         
         self.window_length = window_length
         self.incr = incr
         self.exact_conformance_overlap_at_boundary = exact_conformance_overlap_at_boundary
+        self.use_full_reference_as_region = use_full_reference_as_region
 
         reference_name, start, end = self.__parse_region(region)
         self.reference_name = reference_name
@@ -90,11 +98,20 @@ class EquispacedTilingStrategy(TilingStrategy):
         """Implements :meth:`~shorah.tiling.TilingStrategy.get_window_tilings`.
         """
         
-        window_positions = list(range(
-            self.start - self.incr * 3 if self.exact_conformance_overlap_at_boundary else self.start - self.window_length,
-            self.end + 1 - (self.window_length//self.incr - 3) * self.incr if self.exact_conformance_overlap_at_boundary else self.end + 1, 
-            self.incr 
-        ))
+        if self.use_full_reference_as_region == True:
+            window_positions = list(range(
+                0,
+                self.end, 
+                self.incr
+            ))    
+        else:
+            window_positions = list(range(
+                self.start - self.incr * 3 if self.exact_conformance_overlap_at_boundary 
+                    else self.start - self.window_length,
+                self.end + 1 - (self.window_length//self.incr - 3) * self.incr if self.exact_conformance_overlap_at_boundary 
+                    else self.end + 1, # TODO why +1
+                self.incr 
+            ))
 
         # add one more window at the end
         if self.exact_conformance_overlap_at_boundary == True:
