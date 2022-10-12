@@ -56,10 +56,10 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         full_qualities = list(read.query_qualities)
 
         diff_counter = 0
-        for idx, pair in enumerate(read.get_aligned_pairs()):
+        for idx, pair in enumerate(read.get_aligned_pairs()): # TODO get info that insertion exists here
             if pair[0] == None:
                 full_read.insert(idx - diff_counter, "-")
-                full_qualities.insert(idx - diff_counter, "2") #TODO: We need to give a quality score to the deletions
+                full_qualities.insert(idx - diff_counter, "2") #TODO use quality score of base to the right
             if pair[1] == None:
                 full_read.pop(idx - diff_counter)
                 full_qualities.pop(idx - diff_counter)

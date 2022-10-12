@@ -180,19 +180,13 @@ def main():
                                 required=False, default=1, dest="n_mfa_starts",
                                 help="Number of starts for inference type mean_field_approximation.")
 
+    parser_shotgun.add_argument('--sampler', choices=['shorah','learn_error_params','use_quality_scores'],
+                                default='shorah', dest="inference_type",
+                                help="inference_types: shorah,  learn_error_params, use_quality_scores")
+
+    # FIXME: Cannot be used with shorah
     parser_shotgun.add_argument('--non-unique_modus', action='store_false', dest="unique_modus",
                                 help="For inference: Make read set unique with read weights.")
-
-    parser_shotgun.add_argument('--shorah', action='store_const', const='shorah', dest="inference_type", 
-                                help="inference_types: shorah,  learn_error_params, use_quality_scores")
-
-    parser_shotgun.add_argument('--learn_error_params', action='store_const', const='learn_error_params', dest="inference_type",
-                                help="inference_types: shorah,  learn_error_params, use_quality_scores")
-
-    parser_shotgun.add_argument('--use_quality_scores', action='store_const', const='use_quality_scores', dest="inference_type",
-                                help="inference_types: shorah,  learn_error_params, use_quality_scores")
-
-
 
     parser_shotgun.set_defaults(func=shotgun_run)
 
