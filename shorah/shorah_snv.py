@@ -52,6 +52,8 @@ import pandas as pd
 from collections import namedtuple
 from dataclasses import dataclass
 import logging
+import numpy as np
+
 
 import libshorah
 
@@ -251,7 +253,6 @@ def writeRaw(all_snp, min_windows_coverage):
     """
     header_row =  ['Chromosome', 'Pos', 'Ref', 'Var']
 
-    import numpy as np
     max_number_window_covering_SNV = np.max([len(val) for _, val in sorted(all_snp.items())])
 
     header_row = header_row + ['Frq'+str(k+1) for k in range(max_number_window_covering_SNV)]

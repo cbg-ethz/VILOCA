@@ -58,13 +58,13 @@ You might need to downgrade your pip version:
 To test your installation, we recommend running the program on `tests/data_1`.
 
 If the sequencing amplicon strategy is known, we recommend using the amplicon-mode of the program, which takes as input the `<smth>.insert.bed` - file:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --use_quality_scores`
+`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --sampler use_quality_scores`
 
 If the sequencing quality scores are not trustable, the sequencing error parameters can also be learned:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --learn_error_params`.
+`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --sampler learn_error_params`.
 
 If there is no information on the sequencing amplicon strategy available, run:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta --use_quality_scores`
+`shorah shotgun -b test_aln.cram -f test_ref.fasta --sampler use_quality_scores`
 
 
 ## Development/CI with Docker

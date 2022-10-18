@@ -41,6 +41,7 @@ import logging
 import logging.handlers
 from shorah import shotgun, shorah_snv
 
+# FIXME can we remove this? @Ivan
 use_pkg_resources = False
 all_dirs = os.path.abspath(__file__).split(os.sep)
 base_dir = os.sep.join(all_dirs[:-all_dirs[::-1].index('shorah')])
