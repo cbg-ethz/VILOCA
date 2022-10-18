@@ -48,10 +48,12 @@ import gzip
 import os
 import sys
 import warnings
+import pandas as pd
 from collections import namedtuple
 from dataclasses import dataclass
-
 import logging
+import numpy as np
+
 
 import libshorah
 
@@ -210,6 +212,7 @@ def getSNV(ref, window_thresh=0.9):
     """
 
     all_snp = {}
+    tmp = []
     # cycle over all windows reported in coverage.txt
     with open('coverage.txt') as cov_file, open('raw_snv_collected.tsv', 'w') as f_collect:
         f_collect.write('\t'.join(standard_header_row) + '\n')
@@ -219,6 +222,24 @@ def getSNV(ref, window_thresh=0.9):
             for SNV_id, val in sorted(snp.items()):
                 all_snp = add_SNV_to_dict(all_snp, SNV_id, val)
                 f_collect.write('\t'.join(map(str, [val.chrom, val.pos, val.ref, val.var, val.freq, val.support])) + "\n")
+
+            # write co-occurring mutation to file
+            for SNV_id, val in sorted(snp.items()):
+                snv_dict = {'winFile': winFile,
+                            'chrom': chrom,
+                            'start': beg,
+                            'end': end,
+                            'coverage': cov,
+                            'position': val.pos,
+                            'ref': val.ref,
+                            'var': val.var,
+                            'freq': val.freq,
+                            'support': val.support}
+
+                tmp.append(snv_dict)
+
+    pd.DataFrame(tmp).to_csv('cooccurring_mutations.csv')
+
 
     return all_snp
 
@@ -230,7 +251,6 @@ def writeRaw(all_snp, min_windows_coverage):
     """
     header_row =  ['Chromosome', 'Pos', 'Ref', 'Var']
 
-    import numpy as np
     max_number_window_covering_SNV = np.max([len(val) for _, val in sorted(all_snp.items())])
 
     header_row = header_row + ['Frq'+str(k+1) for k in range(max_number_window_covering_SNV)]
@@ -327,7 +347,12 @@ def main(args):
     # snpD_m is the file with the 'consensus' SNVs (from different windows)
     logging.debug('now parsing SNVs')
     all_SNVs = getSNV(ref_m, posterior_thresh)
-    writeRaw(all_SNVs, min_windows_coverage=1) # min_windows_coverage = 2 usually 
+    if path_insert_file is None:
+        min_windows_coverage=2 # TODO make variable
+        #min_windows_coverage=1 # just for one amplicon mode
+    else:
+        min_windows_coverage=1
+    writeRaw(all_SNVs, min_windows_coverage=min_windows_coverage)
 
     with open('raw_snv.tsv') as f_raw_snv:
         windows_header_row = f_raw_snv.readline().split('\t')
@@ -425,7 +450,8 @@ def main(args):
                 freqs_vcf = wl[4:4+max_number_window]
                 posts_vcf = wl[4+max_number_window: 4+max_number_window+max_number_window]
 
-                # TODO: Why is the sampler returning mutations calls with freq==0 in all windows, is that a problem of the model? 
+                # TODO: Why is the sampler returning mutations calls with freq==0 in all windows, is that a problem of the model?
+                # FIXME: not in csv
                 sum_Freq = 0
                 for freq in freqs_vcf:
                     try:
