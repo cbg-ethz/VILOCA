@@ -9,17 +9,39 @@ def _write_to_file(lines, file_name):
 
 def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
     budget = dict()
-    for pileupcolumn in samfile.pileup(reference_name, multiple_iterators=False):
+    indel_map = []
+
+    for pileupcolumn in samfile.pileup(
+        reference_name,
+        max_depth=1_000_000, # TODO big enough?
+        stepper="nofilter",
+        multiple_iterators=False,
+        ignore_overlaps=False,
+        ignore_orphans=False,
+        min_base_quality=0,): # TODO max_depth
         budget[pileupcolumn.reference_pos] = min(
             pileupcolumn.nsegments,
             maximum_reads-1 # minus 1 because because maximum_reads is exclusive
         )
 
-    return budget
+        for pileupread in pileupcolumn.pileups: # TODO generalize
+            if pileupread.indel > 0 or pileupread.is_del:
+                indel_map.append((
+                    pileupread.alignment.query_name,
+                    pileupread.alignment.reference_start,
+                    pileupcolumn.reference_pos,
+                    pileupread.indel,
+                    pileupread.is_del
+                ))
+
+        # ascending reference_pos are necessary for later steps
+        indel_map.sort(key=lambda tup: tup[2])
+
+    return budget, indel_map
 
 def _run_one_window(samfile, window_start, reference_name, window_length,
         minimum_overlap, permitted_reads_per_location, counter,
-        exact_conformance_fix_0_1_basing_in_reads):
+        exact_conformance_fix_0_1_basing_in_reads, indel_map):
 
     arr = []
     arr_read_summary = []
@@ -36,7 +58,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         if (read.reference_start is None) or (read.reference_end is None):
             continue
         first_aligned_pos = read.reference_start
-        last_aligned_post = read.reference_end - 1 #reference_end is exclusive
+        last_aligned_pos = read.reference_end - 1 #reference_end is exclusive
 
 
         if permitted_reads_per_location[first_aligned_pos] == 0:
@@ -56,26 +78,50 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         full_qualities = list(read.query_qualities)
 
         diff_counter = 0
-        for idx, pair in enumerate(read.get_aligned_pairs()): # TODO get info that insertion exists here
-            if pair[0] == None:
-                full_read.insert(idx - diff_counter, "-")
-                full_qualities.insert(idx - diff_counter, "2") #TODO use quality score of base to the right
-            if pair[1] == None:
-                full_read.pop(idx - diff_counter)
-                full_qualities.pop(idx - diff_counter)
-                diff_counter = diff_counter + 1
+        idx = 0
+
+        for i in indel_map:
+            if i[0] == read.query_name and i[1] == first_aligned_pos:
+                if i[4] == 1:
+                    full_read.insert(i[2] - first_aligned_pos, "-")
+                    full_qualities.insert(i[2] - first_aligned_pos, "2")
+                if i[4] == 0:
+                    full_read.pop(i[2] - first_aligned_pos - diff_counter)
+                    full_qualities.pop(i[2] - first_aligned_pos - diff_counter)
+                    diff_counter += 1
+                if i[3] not in [0, 1]:
+                    # TODO implement
+                    raise NotImplementedError("Insert length larger than 1 not implemented.")
+
+            #if i[0] != read.query_name and first_aligned_pos <= i[2] <= last_aligned_pos:
+
+
+
+
+        for ct in read.cigartuples:
+            if ct[0] in [0,1,2]: # 1 = BAM_CINS, 2 = BAM_CDEL
+                pass
+            elif ct[0] == 4: # 4 = BAM_CSOFT_CLIP
+                for i in range(ct[1]):
+                    full_read.pop(idx - diff_counter)
+                    full_qualities.pop(idx - diff_counter)
+                diff_counter += ct[1]
+            else:
+                # TODO implement
+                raise NotImplementedError("CIGAR op code found that is not implemted:", ct[0])
+            idx += ct[1]
 
         full_read = ("".join(full_read))
 
         if (first_aligned_pos < window_start + window_length - minimum_overlap
-                and last_aligned_post >= window_start + minimum_overlap - 3 # TODO justify 3
+                and last_aligned_pos >= window_start + minimum_overlap - 3 # TODO justify 3
                 and len(full_read) >= minimum_overlap):
 
             cut_out_read = full_read[s]
             cut_out_qualities = full_qualities[s]
 
             # TODO justify 2
-            k = (window_start + window_length) - last_aligned_post - 2
+            k = (window_start + window_length) - last_aligned_pos - 2
             if k > 0:
                 cut_out_read = cut_out_read + k * "N"
                 cut_out_qualities = cut_out_qualities + k * [2]
@@ -93,7 +139,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             )
 
             if exact_conformance_fix_0_1_basing_in_reads == False:
-                arr_line = f'>{read.query_name} {first_aligned_pos}\n{cut_out_read}' # first_aligned_pos is 0-based
+                # first_aligned_pos is 0-based
+                arr_line = f'>{read.query_name} {first_aligned_pos}\n{cut_out_read}'
             else:
                 arr_line = f'>{read.query_name} {first_aligned_pos+1}\n{cut_out_read}'
 
@@ -155,11 +202,13 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     tiling = tiling_strategy.get_window_tilings()
     region_end = tiling_strategy.get_region_end()
 
-    permitted_reads_per_location = _calc_location_maximum_reads(
+    permitted_reads_per_location, indel_map = _calc_location_maximum_reads(
         samfile,
         reference_name,
         maximum_reads
     )
+
+    print(indel_map)
 
     for idx, (window_start, window_length) in enumerate(tiling):
         arr, arr_read_qualities_summary, arr_read_summary, counter = _run_one_window(
@@ -170,7 +219,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             minimum_overlap,
             dict(permitted_reads_per_location), # copys dict ("pass by value")
             counter,
-            exact_conformance_fix_0_1_basing_in_reads
+            exact_conformance_fix_0_1_basing_in_reads,
+            indel_map
         )
 
         window_end = window_start + window_length - 1
