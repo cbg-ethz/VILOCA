@@ -6,6 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED 1
 
+ENV SETUPTOOLS_USE_DISTUTILS=stdlib
+
 RUN apt-get update -y && \
     apt-get install -y libhts-dev libboost-random-dev
 
