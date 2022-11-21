@@ -18,4 +18,4 @@ RUN cd /usr/app && poetry install --no-interaction --no-ansi --no-root
 
 # GitHub Actions chimes in here and sets docker's WORKDIR=${GITHUB_WORKSPACE}
 # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#workdir
-CMD ls && poetry install --only-root && echo $GITHUB_SHA && cd ./tests && echo $GITHUB_SHA && poetry run pytest
+CMD ls && poetry install --no-interaction --no-ansi --no-root && echo $GITHUB_SHA && poetry install --only-root && echo $GITHUB_SHA && cd ./tests && echo $GITHUB_SHA && poetry run pytest
