@@ -9,7 +9,7 @@ def _write_to_file(lines, file_name):
 
 def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
     budget = dict()
-    indel_map = []
+    indel_map = set() # TODO quick fix because pileup created duplicates; why?
 
     for pileupcolumn in samfile.pileup(
         reference_name,
@@ -18,7 +18,7 @@ def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
         multiple_iterators=False,
         ignore_overlaps=False,
         ignore_orphans=False,
-        min_base_quality=0,): # TODO max_depth
+        min_base_quality=0,):
         budget[pileupcolumn.reference_pos] = min(
             pileupcolumn.nsegments,
             maximum_reads-1 # minus 1 because because maximum_reads is exclusive
@@ -26,7 +26,7 @@ def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
 
         for pileupread in pileupcolumn.pileups: # TODO generalize
             if pileupread.indel > 0 or pileupread.is_del:
-                indel_map.append((
+                indel_map.add((
                     pileupread.alignment.query_name,
                     pileupread.alignment.reference_start,
                     pileupcolumn.reference_pos,
@@ -35,10 +35,7 @@ def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
                 ))
 
     # ascending reference_pos are necessary for later steps
-    indel_map.sort(key=lambda tup: tup[2])
-
-    for e in indel_map:
-        print(e)
+    indel_map = sorted(indel_map, key=lambda tup: tup[2])
 
     return budget, indel_map
 
@@ -82,21 +79,22 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 pass
             elif ct[0] == 4: # 4 = BAM_CSOFT_CLIP
                 for _ in range(ct[1]):
-                    print("POP", read.query_name, ct)
                     k = 0 if ct_idx == 0 else len(full_read)-1
                     full_read.pop(k)
                     full_qualities.pop(k)
                 if ct_idx != 0 and ct_idx != len(read.cigartuples)-1:
-                    raise ValueError("Soft clipping only possible on edges.")
+                    raise ValueError("Soft clipping only possible on the edges of a read.")
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
+
+        extended_window_mode = True
 
         for i in indel_map:
             if i[0] == read.query_name and i[1] == first_aligned_pos:
                 if i[4] == 1: # if del
                     full_read.insert(i[2] - first_aligned_pos, "-")
                     full_qualities.insert(i[2] - first_aligned_pos, "2")
-                if i[4] == 0:
+                if i[4] == 0 and not extended_window_mode:
                     assert i[3] > 0
                     for _ in range(i[3]):
                         full_read.pop(i[2] + 1 - first_aligned_pos)
@@ -106,15 +104,16 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                     raise NotImplementedError("Deletions larger than 1 not implemented.")
 
             # TODO new
-            # insert_exists_already = False
-            # if i[0] != read.query_name and first_aligned_pos <= i[2] <= last_aligned_pos and i[4] == 1:
-            #     for j in indel_map:
-            #         if j[0] == read.query_name and j[1] == first_aligned_pos and j[4] == 1 and i[2] == j[2]:
-            #             insert_exists_already = True
-            #             break
-            #     if not insert_exists_already:
-            #         full_read.insert(i[2] - first_aligned_pos, "-")
-
+            # if extended_window_mode:
+            #     del_exists_already = False
+            #     if i[0] != read.query_name and first_aligned_pos <= i[2] <= last_aligned_pos and i[4] == 1:
+            #         for j in indel_map:
+            #             if j[0] == read.query_name and j[1] == first_aligned_pos and j[4] == 1 and i[2] == j[2]:
+            #                 del_exists_already = True
+            #                 break
+            #         if not del_exists_already:
+            #             full_read.insert(i[2] - first_aligned_pos, "-")
+            #             change_in_reference_space += 1
 
 
 
@@ -138,7 +137,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 cut_out_qualities = -start_cut_out * [2] + cut_out_qualities
 
             assert len(cut_out_read) == window_length, (
-                "read unequal window size", read.query_name, cut_out_read, len(cut_out_read)
+                "read unequal window size", read.query_name, first_aligned_pos, cut_out_read, len(cut_out_read)
             )
             assert len(cut_out_qualities) == window_length, (
                 "quality unequal window size"

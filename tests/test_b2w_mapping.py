@@ -34,27 +34,29 @@ class MockAlignedSegment:
             else:
                 cnt += i[1]
 
-@pytest.mark.parametrize("m,spec", [(
-    MockAlignedSegment(
-        "89.6-2108",
-        2291,
-        "AAGTAGGGGGGCAACTAAAGGAAGCTCTATTAGATACAGGAGCAGATGATACAGTATTAGAAGACATTGAGTTGCCAGGGAGATGGAAACCAAAAATGATAGGGGGAATTGGAGGTTTTATCAAAGTAAGACAGTATGAGCAGATAGACATAGAAATCTGTGGACATAAAGCTAAAGGTACAGTATTAGTAGGACCTACACCTGTCAACATAATTGGAAGAAATCTGTTGACTCAGATTGGTTGCA",
-        "3M1D61M1I6M1D175M"
-    ),
-    "CAGATGATACAGTATTAGAAGAATTGAG-TTGCCAGGGAGATGGAAACCAAAAATGATAGGGGGAATTGGAGGTTTTATCAAAGTAAGACAGTATGAGCAGATAGACATAGAAATCTGTGGACATAAAGCTAAAGGTACAGTATTAGTAGGACCTACACCTGTCAACATAATTGGAAGAAATCTGTTGACTCAGATTGGTT"
+@pytest.mark.parametrize("mArr,spec", [(
+    [
+        MockAlignedSegment(
+            "89.6-2108",
+            2291,
+            "AAGTAGGGGGGCAACTAAAGGAAGCTCTATTAGATACAGGAGCAGATGATACAGTATTAGAAGACATTGAGTTGCCAGGGAGATGGAAACCAAAAATGATAGGGGGAATTGGAGGTTTTATCAAAGTAAGACAGTATGAGCAGATAGACATAGAAATCTGTGGACATAAAGCTAAAGGTACAGTATTAGTAGGACCTACACCTGTCAACATAATTGGAAGAAATCTGTTGACTCAGATTGGTTGCA",
+            "3M1D61M1I6M1D175M"
+        )
+    ],[
+        "CAGATGATACAGTATTAGAAGAATTGAG-TTGCCAGGGAGATGGAAACCAAAAATGATAGGGGGAATTGGAGGTTTTATCAAAGTAAGACAGTATGAGCAGATAGACATAGAAATCTGTGGACATAAAGCTAAAGGTACAGTATTAGTAGGACCTACACCTGTCAACATAATTGGAAGAAATCTGTTGACTCAGATTGGTT"
+    ]
+
 )])
-def test_some_func(m,spec, mocker):
+def test_some_func(mArr, spec, mocker):
 
     indels_map = []
-    m.add_indels(indels_map)
+    for m in mArr:
+        m.add_indels(indels_map)
 
     mock_samfile = mocker.MagicMock()
     mock_samfile.configure_mock(
         **{
-            "fetch.return_value": [
-                m,
-                #MockAlignedSegment("X2", 51, "GGAAAGCGGTC")
-            ]
+            "fetch.return_value": mArr
         }
     )
 
@@ -76,4 +78,5 @@ def test_some_func(m,spec, mocker):
         indels_map
     )
 
-    assert arr[0].split("\n")[1] == spec
+    for idx, el in enumerate(arr[0].split("\n")):
+        assert el == spec[idx]
