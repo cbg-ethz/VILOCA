@@ -77,6 +77,7 @@ def test_some_func(mArr, spec, mocker):
         True,
         indels_map
     )
+    print(arr)
 
-    for idx, el in enumerate(arr[0].split("\n")):
-        assert el == spec[idx]
+    for idx, el in enumerate(arr):
+        assert el.split("\n")[1] == spec[idx]

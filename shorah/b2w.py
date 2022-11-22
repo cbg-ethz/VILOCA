@@ -87,7 +87,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
-        extended_window_mode = True
+        extended_window_mode = False # TODO
 
         for i in indel_map:
             if i[0] == read.query_name and i[1] == first_aligned_pos:
