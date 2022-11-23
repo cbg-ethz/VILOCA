@@ -27,15 +27,16 @@ class MockAlignedSegment:
         cnt = self.reference_start
         for i in self.cigartuples:
             if i[0] == 1: # insert TODO Justify -1
-                indels_map.append((self.query_name, self.reference_start, cnt-1, i[1], 0))
+                indels_map.append((self.query_name, self.reference_start, cnt-1, i[1], 0)) # cnt-1
             elif i[0] == 2: # del
                 indels_map.append((self.query_name, self.reference_start, cnt, 0, 1))
                 cnt += i[1]
             else:
                 cnt += i[1]
 
-@pytest.mark.parametrize("mArr,spec", [(
-    [
+# window_start is 0 based
+@pytest.mark.parametrize("mArr,spec,window_length,window_start,extended_window_mode", [
+    ([
         MockAlignedSegment(
             "89.6-2108",
             2291,
@@ -44,14 +45,71 @@ class MockAlignedSegment:
         )
     ],[
         "CAGATGATACAGTATTAGAAGAATTGAG-TTGCCAGGGAGATGGAAACCAAAAATGATAGGGGGAATTGGAGGTTTTATCAAAGTAAGACAGTATGAGCAGATAGACATAGAAATCTGTGGACATAAAGCTAAAGGTACAGTATTAGTAGGACCTACACCTGTCAACATAATTGGAAGAAATCTGTTGACTCAGATTGGTT"
-    ]
-
-)])
-def test_some_func(mArr, spec, mocker):
+    ], 201, 2334, False),
+    ([
+        MockAlignedSegment(
+            "Q1",
+            2291,
+            "AAGTAGGGGGGCAACTAAAG",
+            "20M"
+        ),
+        MockAlignedSegment(
+            "Q2",
+            2293,
+            "AAGTAGGGGGGCAACTAAAG",
+            "20M"
+        ),
+        MockAlignedSegment(
+            "Q3",
+            2281,
+            "AAGTAGGGGGGCAACTAAAG",
+            "20M"
+        )
+    ],[
+        "AAGTAGGGGGGCAAC",
+        "NNAAGTAGGGGGGCA",
+        "GCAACTAAAGNNNNN"
+    ], 15, 2291, False),
+    ([
+        MockAlignedSegment(
+            "Q1",
+            2291,
+            "AAAAACCCGGAAAAAAAAAA",
+            "5M3I12M"
+        ),
+        MockAlignedSegment(
+            "Q2",
+            2291,
+            "GGGCCAAAAAAAAAAAAAAAAA",
+            "3M2I17M"
+        )
+    ],[
+        "AAA--AACCC",
+        "GGGCC---AA"
+    ], 10, 2291, True),
+    ([
+        MockAlignedSegment(
+            "Q1",
+            2291,
+            "AAAAACCCGGAAAAAAAAAA",
+            "5M3I12M"
+        ),
+        MockAlignedSegment(
+            "Q2",
+            2291,
+            "GGGCCAAAAAAAAAAAAAAAAA",
+            "4M2I16M"
+        )
+    ],[
+        "AAGTAGGGGGGCAAC"
+    ], 10, 2291, True)
+])
+def test_some_func(mArr, spec, window_length, window_start, extended_window_mode, mocker):
 
     indels_map = []
     for m in mArr:
         m.add_indels(indels_map)
+    print(indels_map)
 
     mock_samfile = mocker.MagicMock()
     mock_samfile.configure_mock(
@@ -63,9 +121,6 @@ def test_some_func(mArr, spec, mocker):
     mock_dict = mocker.MagicMock()
     mock_dict.__getitem__.return_value = 42
 
-    window_length = 201
-    window_start = 2334 # 0 based
-
     arr, arr_read_qualities_summary, arr_read_summary, counter = b2w._run_one_window(
         mock_samfile,
         window_start,
@@ -75,7 +130,8 @@ def test_some_func(mArr, spec, mocker):
         mock_dict,
         0,
         True,
-        indels_map
+        indels_map,
+        extended_window_mode
     )
     print(arr)
 

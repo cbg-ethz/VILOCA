@@ -24,11 +24,11 @@ def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
             maximum_reads-1 # minus 1 because because maximum_reads is exclusive
         )
 
-        for pileupread in pileupcolumn.pileups: # TODO generalize
+        for pileupread in pileupcolumn.pileups:
             if pileupread.indel > 0 or pileupread.is_del:
                 indel_map.add((
-                    pileupread.alignment.query_name,
-                    pileupread.alignment.reference_start,
+                    pileupread.alignment.query_name, # TODO is unique?
+                    pileupread.alignment.reference_start, # TODO is unique?
                     pileupcolumn.reference_pos,
                     pileupread.indel,
                     pileupread.is_del
@@ -41,7 +41,8 @@ def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
 
 def _run_one_window(samfile, window_start, reference_name, window_length,
         minimum_overlap, permitted_reads_per_location, counter,
-        exact_conformance_fix_0_1_basing_in_reads, indel_map):
+        exact_conformance_fix_0_1_basing_in_reads, indel_map,
+        extended_window_mode=False):
 
     arr = []
     arr_read_summary = []
@@ -66,16 +67,11 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         else:
             permitted_reads_per_location[first_aligned_pos] -= 1
 
-        # start_cut_out is 0-based while window_start is 1-based
-        start_cut_out = window_start - first_aligned_pos
-        end_cut_out = start_cut_out + window_length
-
-        s = slice(max(0, start_cut_out), end_cut_out)
         full_read = list(read.query_sequence)
         full_qualities = list(read.query_qualities)
 
         for ct_idx, ct in enumerate(read.cigartuples):
-            if ct[0] in [0,1,2]: # 0 = BAM_, 1 = BAM_CINS, 2 = BAM_CDEL
+            if ct[0] in [0,1,2]: # 0 = BAM_CMATCH, 1 = BAM_CINS, 2 = BAM_CDEL
                 pass
             elif ct[0] == 4: # 4 = BAM_CSOFT_CLIP
                 for _ in range(ct[1]):
@@ -87,41 +83,58 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
-        extended_window_mode = False # TODO
+        own_inserts = set()
+        foreign_inserts = set()
 
         for i in indel_map:
             if i[0] == read.query_name and i[1] == first_aligned_pos:
                 if i[4] == 1: # if del
+                    if i[3] != 0:
+                        # TODO implement
+                        raise NotImplementedError("Deletions larger than 1 not implemented.")
                     full_read.insert(i[2] - first_aligned_pos, "-")
                     full_qualities.insert(i[2] - first_aligned_pos, "2")
-                if i[4] == 0 and not extended_window_mode:
+                    continue
+
+                elif i[4] == 0 and not extended_window_mode:
                     assert i[3] > 0
                     for _ in range(i[3]):
                         full_read.pop(i[2] + 1 - first_aligned_pos)
                         full_qualities.pop(i[2] + 1 - first_aligned_pos)
-                if i[3] != 0 and i[4] == 1:
-                    # TODO implement
-                    raise NotImplementedError("Deletions larger than 1 not implemented.")
+                    continue
+
+                elif i[4] == 0 and extended_window_mode:
+                    own_inserts.update(range(i[2], i[2] + i[3]))
+
+                else:
+                    pass
 
             # TODO new
-            # if extended_window_mode:
-            #     del_exists_already = False
-            #     if i[0] != read.query_name and first_aligned_pos <= i[2] <= last_aligned_pos and i[4] == 1:
-            #         for j in indel_map:
-            #             if j[0] == read.query_name and j[1] == first_aligned_pos and j[4] == 1 and i[2] == j[2]:
-            #                 del_exists_already = True
-            #                 break
-            #         if not del_exists_already:
-            #             full_read.insert(i[2] - first_aligned_pos, "-")
-            #             change_in_reference_space += 1
+            if (extended_window_mode and i[0] != read.query_name and
+                first_aligned_pos <= i[2] <= last_aligned_pos and i[4] == 0): # TODO edge values left
+                foreign_inserts.update(range(i[2], i[2] + i[3]))
 
+        print(foreign_inserts)
 
+        change_in_reference_space = 0 # TODO move into if
+        if extended_window_mode:
+            foreign_inserts -= own_inserts
+            print(foreign_inserts)
+            for el in sorted(foreign_inserts):
+                full_read.insert(el + 1 - first_aligned_pos, "-")
+                full_qualities.insert(el + 1 - first_aligned_pos, "2")
+                change_in_reference_space += 1
 
         full_read = ("".join(full_read))
 
+        # TODO incorporate change_in_reference_space in if
         if (first_aligned_pos < window_start + 1 + window_length - minimum_overlap
                 and last_aligned_pos >= window_start + minimum_overlap - 2 # TODO justify 2
                 and len(full_read) >= minimum_overlap):
+
+            start_cut_out = window_start - first_aligned_pos
+            end_cut_out = start_cut_out + window_length
+            s = slice(max(0, start_cut_out), end_cut_out)
 
             cut_out_read = full_read[s]
             cut_out_qualities = full_qualities[s]
