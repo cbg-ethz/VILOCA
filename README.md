@@ -35,10 +35,7 @@ shorah requires the following pieces of software:
 3. **Boost C++ library**, for random number generation.
 
 ### Installation
-<<<<<<< HEAD
-=======
 For installation miniconda is recommended: https://docs.conda.io/en/latest/miniconda.html
->>>>>>> db59f9e... [CI] Fix tests (#4)
 We recommend to install ShoRAH in a clean conda enviroment:
 `conda create --name env_shorah python=3.9`
 
