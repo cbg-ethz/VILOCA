@@ -43,7 +43,6 @@ def _collect_files(base_path):
 ], indirect=["spec_dir"])
 def test_cmp_raw(spec_dir, alignment_file, reference_file, region, window_length,overlap_factor, win_min_ext, maximum_reads, minimum_reads):
     assert window_length > 0 and window_length%overlap_factor == 0
-    minimum_overlap = math.floor(window_length * win_min_ext)
     incr = window_length//overlap_factor
 
     os.chdir(os.path.join(p, spec_dir))
@@ -52,7 +51,7 @@ def test_cmp_raw(spec_dir, alignment_file, reference_file, region, window_length
         reference_file,
         window_length,
         incr,
-        minimum_overlap,
+        win_min_ext,
         maximum_reads,
         minimum_reads,
         False,

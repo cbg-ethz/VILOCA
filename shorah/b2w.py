@@ -41,14 +41,12 @@ def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
     return budget, indel_map
 
 def _run_one_window(samfile, window_start, reference_name, window_length,
-        win_min_ext, permitted_reads_per_location, counter,
+        minimum_overlap, permitted_reads_per_location, counter,
         exact_conformance_fix_0_1_basing_in_reads, indel_map):
 
     arr = []
     arr_read_summary = []
     arr_read_qualities_summary = []
-    
-    minimum_overlap = math.floor(win_min_ext * window_length)
 
     iter = samfile.fetch(
         reference_name,
@@ -179,7 +177,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     Args:
         alignment_file: Path to the alignment file in CRAM format.
         tiling_strategy: A strategy on how the genome is partitioned.
-        minimum_overlap: Minimum number of bases to overlap between reference
+        win_min_ext: Minimum percentage of bases to overlap between reference
             and read to be considered in a window. The rest (i.e.
             non-overlapping part) will be filled with Ns.
         maximum_reads: Upper (exclusive) limit of reads allowed to start at the
@@ -216,13 +214,15 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         maximum_reads
     )
 
+    minimum_overlap = math.floor(win_min_ext * window_length)
+
     for idx, (window_start, window_length) in enumerate(tiling):
         arr, arr_read_qualities_summary, arr_read_summary, counter = _run_one_window(
             samfile,
             window_start - 1, # make 0 based
             reference_name,
             window_length,
-            win_min_ext,
+            minimum_overlap,
             dict(permitted_reads_per_location), # copys dict ("pass by value")
             counter,
             exact_conformance_fix_0_1_basing_in_reads,
