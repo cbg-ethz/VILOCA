@@ -75,7 +75,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         full_qualities = list(read.query_qualities)
 
         for ct_idx, ct in enumerate(read.cigartuples):
-            if ct[0] in [0,1,2]: # 0 = BAM_, 1 = BAM_CINS, 2 = BAM_CDEL
+            if ct[0] in [0,1,2,7,8]: # 0 = BAM_, 1 = BAM_CINS, 2 = BAM_CDEL, 7 = BAM_CEQUAL, 8 = BAM_CDIFF
                 pass
             elif ct[0] == 4: # 4 = BAM_CSOFT_CLIP
                 for _ in range(ct[1]):
