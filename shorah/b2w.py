@@ -2,6 +2,7 @@ import pysam
 from typing import Optional
 from shorah.tiling import TilingStrategy, EquispacedTilingStrategy
 import numpy as np
+import math
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
@@ -40,12 +41,14 @@ def _calc_location_maximum_reads(samfile, reference_name, maximum_reads):
     return budget, indel_map
 
 def _run_one_window(samfile, window_start, reference_name, window_length,
-        minimum_overlap, permitted_reads_per_location, counter,
+        win_min_ext, permitted_reads_per_location, counter,
         exact_conformance_fix_0_1_basing_in_reads, indel_map):
 
     arr = []
     arr_read_summary = []
     arr_read_qualities_summary = []
+    
+    minimum_overlap = math.floor(win_min_ext * window_length)
 
     iter = samfile.fetch(
         reference_name,
@@ -163,7 +166,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 
 
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
-    minimum_overlap: int, maximum_reads: int, minimum_reads: int,
+    win_min_ext: float, maximum_reads: int, minimum_reads: int,
     reference_filename: str,
     exact_conformance_fix_0_1_basing_in_reads: Optional[bool] = False) -> None:
     """Summarizes reads aligned to reference into windows.
@@ -219,7 +222,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             window_start - 1, # make 0 based
             reference_name,
             window_length,
-            minimum_overlap,
+            win_min_ext,
             dict(permitted_reads_per_location), # copys dict ("pass by value")
             counter,
             exact_conformance_fix_0_1_basing_in_reads,
@@ -278,7 +281,7 @@ if __name__ == "__main__":
         help='window length', required=True)
     parser.add_argument('-i', '--incr', nargs=1, type=int, help='increment',
         required=True)
-    parser.add_argument('-m', nargs=1, type=int, help='minimum overlap',
+    parser.add_argument('-m', nargs=1, type=float, help='minimum overlap',
         required=True)
     parser.add_argument('-x', nargs=1, type=int,
         help='max reads starting at a position', required=True)
