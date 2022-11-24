@@ -191,6 +191,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             applied everywhere now. Set this flag to `False` only for exact
             conformance with the old version (in tests).
     """
+    assert 0 <= win_min_ext <= 1
 
     pysam.index(alignment_file)
     samfile = pysam.AlignmentFile(
