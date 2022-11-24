@@ -214,15 +214,13 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         maximum_reads
     )
 
-    minimum_overlap = math.floor(win_min_ext * window_length)
-
     for idx, (window_start, window_length) in enumerate(tiling):
         arr, arr_read_qualities_summary, arr_read_summary, counter = _run_one_window(
             samfile,
             window_start - 1, # make 0 based
             reference_name,
             window_length,
-            minimum_overlap,
+            math.floor(win_min_ext * window_length),
             dict(permitted_reads_per_location), # copys dict ("pass by value")
             counter,
             exact_conformance_fix_0_1_basing_in_reads,
@@ -281,7 +279,7 @@ if __name__ == "__main__":
         help='window length', required=True)
     parser.add_argument('-i', '--incr', nargs=1, type=int, help='increment',
         required=True)
-    parser.add_argument('-m', nargs=1, type=float, help='minimum overlap',
+    parser.add_argument('-m', nargs=1, type=float, help='minimum overlap in percent',
         required=True)
     parser.add_argument('-x', nargs=1, type=int,
         help='max reads starting at a position', required=True)

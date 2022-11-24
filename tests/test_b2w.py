@@ -44,6 +44,7 @@ def _collect_files(base_path):
 def test_cmp_raw(spec_dir, alignment_file, reference_file, region, window_length,overlap_factor, win_min_ext, maximum_reads, minimum_reads):
     assert window_length > 0 and window_length%overlap_factor == 0
     incr = window_length//overlap_factor
+    minimum_overlap = math.floor(win_min_ext * window_length)
 
     os.chdir(os.path.join(p, spec_dir))
     returncode = libshorah.b2w(
@@ -51,7 +52,7 @@ def test_cmp_raw(spec_dir, alignment_file, reference_file, region, window_length
         reference_file,
         window_length,
         incr,
-        win_min_ext,
+        minimum_overlap,
         maximum_reads,
         minimum_reads,
         False,
@@ -65,7 +66,7 @@ def test_cmp_raw(spec_dir, alignment_file, reference_file, region, window_length
     b2w.build_windows(
         alignment_file = os.path.join(p, spec_dir, alignment_file),
         tiling_strategy = strategy,
-        minimum_overlap = minimum_overlap,
+        win_min_ext = win_min_ext,
         maximum_reads = maximum_reads,
         minimum_reads = minimum_reads,
         reference_filename = os.path.join(p, spec_dir, reference_file),
