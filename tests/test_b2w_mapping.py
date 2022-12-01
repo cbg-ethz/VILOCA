@@ -84,9 +84,9 @@ class MockAlignedSegment:
             "3M2I17M"
         )
     ],[
-        "AAA--AACCC",
-        "GGGCC---AA"
-    ], 10, 2291, True),
+        "AAA--AACCCGGAAA",
+        "GGGCCAA---AAAAA"
+    ], 15, 2291, True),
     ([
         MockAlignedSegment(
             "Q1",
@@ -101,15 +101,45 @@ class MockAlignedSegment:
             "4M2I16M"
         )
     ],[
-        "AAGTAGGGGGGCAAC"
-    ], 10, 2291, True)
+        "AAAA--ACCCGGAA",
+        "GGGCCAA---AAAA"
+    ], 14, 2291, True),
+    ([
+        MockAlignedSegment(
+            "Q1",
+            2291,
+            "AAAAACCCGGAAAAAAAAAACCCCCCCA",
+            "5M3I3M3I14M"
+        ),
+        MockAlignedSegment(
+            "Q2",
+            2291,
+            "GGGCCAAACCGTTAAAAAAAAAAAGGC",
+            "8M5I14M"
+        )
+    ],[
+        "AAAAACCCGGAAAA--AAAAAACCC",
+        "GGGCC---AAACCGTTAAAAAAAAA"
+    ], 25, 2291, True)
 ])
 def test_some_func(mArr, spec, window_length, window_start, extended_window_mode, mocker):
 
     indels_map = []
     for m in mArr:
         m.add_indels(indels_map)
+    indels_map.sort(key=lambda tup: tup[2])
     print(indels_map)
+
+    max_indel_at_pos = dict()
+    for el in indels_map:
+        if el[4] == 0 and el[3] > 0:
+            try:
+                if max_indel_at_pos[el[2]] < el[3]:
+                    max_indel_at_pos[el[2]] = el[3]
+            except KeyError:
+                max_indel_at_pos[el[2]] = el[3]
+
+    print(max_indel_at_pos)
 
     mock_samfile = mocker.MagicMock()
     mock_samfile.configure_mock(
@@ -131,6 +161,7 @@ def test_some_func(mArr, spec, window_length, window_start, extended_window_mode
         0,
         True,
         indels_map,
+        max_indel_at_pos,
         extended_window_mode
     )
     print(arr)
