@@ -61,10 +61,11 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         window_start + window_length # arg exclusive as per pysam convention
     )
 
-    # if extended_window_mode:
-    #     window_length += sum(
-    #         max_indel_at_pos[window_start:window_start + window_length]
-    #     )
+    if extended_window_mode:
+        window_length += sum(
+            max_indel_at_pos[window_start:window_start + window_length]
+        )
+        print(window_length)
 
     for read in iter:
 
@@ -127,6 +128,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 first_aligned_pos <= ref_pos <= last_aligned_pos and is_del == 0): # TODO edge values left
                 all_inserts.add((ref_pos, indel_len))
 
+        len_of_own_inserts = 0
         if extended_window_mode:
             change_in_reference_space = 0
             [own_inserts_pos, own_inserts_len] = [list(t) for t in zip(*own_inserts)]
@@ -145,6 +147,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 for _ in range(L):
                     full_read.insert(in_idx, "-")
                     full_qualities.insert(in_idx, "2")
+                len_of_own_inserts += L
 
                 change_in_reference_space += max_indel_at_pos[pos]
 
@@ -161,7 +164,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             cut_out_read = full_read[s]
             cut_out_qualities = full_qualities[s]
 
-            k = window_start + window_length - 1 - last_aligned_pos
+            k = window_start + window_length - 1 - last_aligned_pos - len_of_own_inserts
+
             if k > 0:
                 cut_out_read = cut_out_read + k * "N"
                 cut_out_qualities = cut_out_qualities + k * [2]
@@ -171,6 +175,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 cut_out_read = -start_cut_out * "N" + cut_out_read
                 cut_out_qualities = -start_cut_out * [2] + cut_out_qualities
 
+            print(window_length)
+            print(len_of_own_inserts)
             assert len(cut_out_read) == window_length, (
                 "read unequal window size", read.query_name, first_aligned_pos, cut_out_read, len(cut_out_read)
             )
@@ -281,7 +287,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             )
 
         if (idx != len(tiling) - 1 # except last
-            and len(arr) > 0) or len(tiling)==1: # suppress output if window empty
+            and len(arr) > 0) or len(tiling) == 1: # suppress output if window empty
 
             _write_to_file(arr, file_name + '.reads.fas')
             with open(file_name + '.qualities.npy', 'wb') as f:
