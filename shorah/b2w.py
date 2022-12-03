@@ -49,7 +49,7 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
 def _run_one_window(samfile, window_start, reference_name, window_length,
         minimum_overlap, permitted_reads_per_location, counter,
         exact_conformance_fix_0_1_basing_in_reads, indel_map, max_indel_at_pos,
-        extended_window_mode=False):
+        extended_window_mode):
 
     arr = []
     arr_read_summary = []
@@ -219,7 +219,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     minimum_overlap: int, maximum_reads: int, minimum_reads: int,
     reference_filename: str,
-    exact_conformance_fix_0_1_basing_in_reads: Optional[bool] = False) -> None:
+    exact_conformance_fix_0_1_basing_in_reads: Optional[bool] = False,
+    extended_window_mode: Optional[bool] = False) -> None:
     """Summarizes reads aligned to reference into windows.
     Three products are created:
     #. Multiple FASTA files (one for each window position)
@@ -243,6 +244,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             of reads in the window file in the old C++ version. 1-basing is
             applied everywhere now. Set this flag to `False` only for exact
             conformance with the old version (in tests).
+        extended_window_mode: Mode where inserts are not deleted but kept. The
+            windows are instead extended.
     """
 
     pysam.index(alignment_file)
@@ -278,7 +281,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             counter,
             exact_conformance_fix_0_1_basing_in_reads,
             indel_map,
-            max_indel_at_pos
+            max_indel_at_pos,
+            extended_window_mode
         )
 
         window_end = window_start + window_length - 1
