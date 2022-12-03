@@ -9,7 +9,7 @@ def _write_to_file(lines, file_name):
 
 def _calc_via_pileup(samfile, reference_name, maximum_reads):
     budget = dict()
-    max_indel_at_pos = []
+    max_indel_at_pos = dict()
     indel_map = set() # TODO quick fix because pileup created duplicates; why?
 
     for pileupcolumn in samfile.pileup(
@@ -39,7 +39,7 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
                 max_at_this_pos = pileupread.indel
 
         if max_at_this_pos > 0:
-            max_indel_at_pos.append(max_at_this_pos) # TODO assume that positions are consecutive?
+            max_indel_at_pos[pileupcolumn.reference_pos] = max_at_this_pos
 
     # ascending reference_pos are necessary for later steps
     indel_map = sorted(indel_map, key=lambda tup: tup[2])
@@ -61,11 +61,11 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         window_start + window_length # arg exclusive as per pysam convention
     )
 
+    original_window_length = window_length
     if extended_window_mode:
-        window_length += sum(
-            max_indel_at_pos[window_start:window_start + window_length]
-        )
-        print(window_length)
+        for pos, val in max_indel_at_pos.items():
+            if window_start <= pos < window_start + window_length:
+                window_length += val
 
     for read in iter:
 
@@ -96,17 +96,19 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
-        all_inserts = set()
+        all_inserts = dict()
         own_inserts = set()
 
+        change_in_reference_space_ins = 0
+        last_val = 0
         for name, start, ref_pos, indel_len, is_del in indel_map:
             if name == read.query_name and start == first_aligned_pos:
                 if is_del == 1: # if del
                     if indel_len != 0:
                         # TODO implement
                         raise NotImplementedError("Deletions larger than 1 not implemented.")
-                    full_read.insert(ref_pos - first_aligned_pos, "-")
-                    full_qualities.insert(ref_pos - first_aligned_pos, "2")
+                    full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
+                    full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
                     continue
 
                 elif is_del == 0 and not extended_window_mode:
@@ -117,8 +119,14 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                     continue
 
                 elif is_del == 0 and extended_window_mode:
-                    all_inserts.add((ref_pos, indel_len))
                     own_inserts.add((ref_pos, indel_len))
+                    change_in_reference_space_ins += indel_len
+                    if last_val == ref_pos:
+                        if all_inserts[ref_pos] < indel_len:
+                            all_inserts[ref_pos] = indel_len
+                    else:
+                        all_inserts[ref_pos] = indel_len
+                    last_val = ref_pos
 
                 else:
                     pass
@@ -126,14 +134,22 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 
             if (extended_window_mode and name != read.query_name and
                 first_aligned_pos <= ref_pos <= last_aligned_pos and is_del == 0): # TODO edge values left
-                all_inserts.add((ref_pos, indel_len))
+                if last_val == ref_pos:
+                    if all_inserts[ref_pos] < indel_len:
+                        all_inserts[ref_pos] = indel_len
+                else:
+                    all_inserts[ref_pos] = indel_len
+                last_val = ref_pos
 
-        len_of_own_inserts = 0
         if extended_window_mode:
             change_in_reference_space = 0
-            [own_inserts_pos, own_inserts_len] = [list(t) for t in zip(*own_inserts)]
+            own_inserts_pos = []
+            own_inserts_len = []
+            if len(own_inserts) != 0:
+                [own_inserts_pos, own_inserts_len] = [list(t) for t in zip(*own_inserts)]
 
-            for pos, n in sorted(all_inserts, key=lambda tup: tup[0]):
+            for pos in sorted(all_inserts):
+                n = all_inserts[pos]
                 if (pos, n) in own_inserts:
                     change_in_reference_space += n
                     continue
@@ -147,7 +163,6 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 for _ in range(L):
                     full_read.insert(in_idx, "-")
                     full_qualities.insert(in_idx, "2")
-                len_of_own_inserts += L
 
                 change_in_reference_space += max_indel_at_pos[pos]
 
@@ -164,7 +179,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             cut_out_read = full_read[s]
             cut_out_qualities = full_qualities[s]
 
-            k = window_start + window_length - 1 - last_aligned_pos - len_of_own_inserts
+            k = window_start + original_window_length - 1 - last_aligned_pos
 
             if k > 0:
                 cut_out_read = cut_out_read + k * "N"
@@ -175,8 +190,6 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 cut_out_read = -start_cut_out * "N" + cut_out_read
                 cut_out_qualities = -start_cut_out * [2] + cut_out_qualities
 
-            print(window_length)
-            print(len_of_own_inserts)
             assert len(cut_out_read) == window_length, (
                 "read unequal window size", read.query_name, first_aligned_pos, cut_out_read, len(cut_out_read)
             )
