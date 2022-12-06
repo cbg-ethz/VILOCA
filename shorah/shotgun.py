@@ -51,7 +51,7 @@ else:
     from . import tiling
 
 # import local haplotype inference methods
-from .local_haplotype_inference.mean_field_approximation import run_dpm_mfa
+from .local_haplotype_inference.mean_field_approximation_qualities import run_dpm_mfa
 
 
 #################################################
@@ -192,7 +192,7 @@ def run_dpm(run_setting):
         shutil.move(fqual_fstgz, './')
         subprocess.check_call(["gunzip", "%s-qualities.gz" % stem])
 
-    if inference_type == '': # run the original sampler of ShoRAH
+    if inference_type == 'shorah': # run the original sampler of ShoRAH
 
         # dn = sys.path[0]
         #my_prog = shlex.quote(diri_exe)  # os.path.join(dn, 'diri_sampler')
@@ -226,7 +226,7 @@ def run_dpm(run_setting):
         except Exception as e:
             logging.error(f'{filein} - Run failed: {e}')
 
-    elif inference_type == 'mean_field_approximation':
+    elif inference_type == 'use_quality_scores':
         run_dpm_mfa.main(
                  freads_in=filein,
                  fref_in=ref_in,
