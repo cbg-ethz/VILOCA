@@ -2,6 +2,7 @@ import pysam
 from typing import Optional
 from shorah.tiling import TilingStrategy, EquispacedTilingStrategy
 import numpy as np
+import math
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
@@ -219,7 +220,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 
 
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
-    minimum_overlap: int, maximum_reads: int, minimum_reads: int,
+    win_min_ext: float, maximum_reads: int, minimum_reads: int,
     reference_filename: str,
     exact_conformance_fix_0_1_basing_in_reads: Optional[bool] = False,
     extended_window_mode: Optional[bool] = False) -> None:
@@ -233,7 +234,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     Args:
         alignment_file: Path to the alignment file in CRAM format.
         tiling_strategy: A strategy on how the genome is partitioned.
-        minimum_overlap: Minimum number of bases to overlap between reference
+        win_min_ext: Minimum percentage of bases to overlap between reference
             and read to be considered in a window. The rest (i.e.
             non-overlapping part) will be filled with Ns.
         maximum_reads: Upper (exclusive) limit of reads allowed to start at the
@@ -249,8 +250,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         extended_window_mode: Mode where inserts are not deleted but kept. The
             windows are instead extended.
     """
-    extended_window_mode = True
-
+    assert 0 <= win_min_ext <= 1
 
     pysam.index(alignment_file)
     samfile = pysam.AlignmentFile(
@@ -280,7 +280,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             window_start - 1, # make 0 based
             reference_name,
             window_length,
-            minimum_overlap,
+            math.floor(win_min_ext * window_length),
             dict(permitted_reads_per_location), # copys dict ("pass by value")
             counter,
             exact_conformance_fix_0_1_basing_in_reads,
@@ -341,7 +341,7 @@ if __name__ == "__main__":
         help='window length', required=True)
     parser.add_argument('-i', '--incr', nargs=1, type=int, help='increment',
         required=True)
-    parser.add_argument('-m', nargs=1, type=int, help='minimum overlap',
+    parser.add_argument('-m', nargs=1, type=float, help='minimum overlap in percent',
         required=True)
     parser.add_argument('-x', nargs=1, type=int,
         help='max reads starting at a position', required=True)
