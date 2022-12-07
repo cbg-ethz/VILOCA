@@ -64,7 +64,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
     original_window_length = window_length
     if extended_window_mode:
         for pos, val in max_indel_at_pos.items():
-            if window_start <= pos < window_start + window_length:
+            if window_start <= pos < window_start + original_window_length:
                 window_length += val
 
     for read in iter:
@@ -100,13 +100,14 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         own_inserts = set()
 
         change_in_reference_space_ins = 0
-        last_val = 0
+        num_inserts_right_of_read = 0
+        num_inserts_left_of_read = 0
+
         for name, start, ref_pos, indel_len, is_del in indel_map:
             if name == read.query_name and start == first_aligned_pos:
                 if is_del == 1: # if del
                     if indel_len != 0:
-                        # TODO implement
-                        raise NotImplementedError("Deletions larger than 1 not implemented.")
+                        raise NotImplementedError("Deletions larger than 1 not expected.")
                     full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
                     full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
                     continue
@@ -118,28 +119,20 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                         full_qualities.pop(start + 1 - first_aligned_pos)
                     continue
 
-                elif is_del == 0 and extended_window_mode:
+                elif is_del == 0 and extended_window_mode and ref_pos >= window_start:
                     own_inserts.add((ref_pos, indel_len))
                     change_in_reference_space_ins += indel_len
-                    if last_val == ref_pos:
-                        if all_inserts[ref_pos] < indel_len:
-                            all_inserts[ref_pos] = indel_len
-                    else:
-                        all_inserts[ref_pos] = indel_len
-                    last_val = ref_pos
+                    all_inserts[ref_pos] = max_indel_at_pos[ref_pos]
 
                 else:
                     pass
 
 
-            if (extended_window_mode and name != read.query_name and
-                first_aligned_pos <= ref_pos <= last_aligned_pos and is_del == 0): # TODO edge values left
-                if last_val == ref_pos:
-                    if all_inserts[ref_pos] < indel_len:
-                        all_inserts[ref_pos] = indel_len
-                else:
-                    all_inserts[ref_pos] = indel_len
-                last_val = ref_pos
+            if (extended_window_mode and
+                (name != read.query_name or start != first_aligned_pos) and
+                window_start <= ref_pos < last_aligned_pos and is_del == 0 and
+                first_aligned_pos <= ref_pos): # TODO edge values left
+                all_inserts[ref_pos] = max_indel_at_pos[ref_pos]
 
         if extended_window_mode:
             change_in_reference_space = 0
@@ -166,6 +159,13 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 
                 change_in_reference_space += max_indel_at_pos[pos]
 
+            for pos, val in max_indel_at_pos.items():
+                if last_aligned_pos <= pos < window_start + original_window_length:
+                    num_inserts_right_of_read += 1
+                if window_start <= pos < first_aligned_pos:
+                    num_inserts_left_of_read += 1 # TODO unused
+
+
         full_read = ("".join(full_read))
 
         if (first_aligned_pos < window_start + 1 + window_length - minimum_overlap
@@ -179,7 +179,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             cut_out_read = full_read[s]
             cut_out_qualities = full_qualities[s]
 
-            k = window_start + original_window_length - 1 - last_aligned_pos
+            k = (window_start + original_window_length - 1 - last_aligned_pos
+                + num_inserts_right_of_read)
 
             if k > 0:
                 cut_out_read = cut_out_read + k * "N"
@@ -191,7 +192,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 cut_out_qualities = -start_cut_out * [2] + cut_out_qualities
 
             assert len(cut_out_read) == window_length, (
-                "read unequal window size", read.query_name, first_aligned_pos, cut_out_read, len(cut_out_read)
+                "read unequal window size",
+                read.query_name, first_aligned_pos, cut_out_read, window_start, window_length
             )
             assert len(cut_out_qualities) == window_length, (
                 "quality unequal window size"
@@ -247,6 +249,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         extended_window_mode: Mode where inserts are not deleted but kept. The
             windows are instead extended.
     """
+    extended_window_mode = True
+
 
     pysam.index(alignment_file)
     samfile = pysam.AlignmentFile(
