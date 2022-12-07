@@ -51,7 +51,7 @@ else:
     from . import tiling
 
 # import local haplotype inference methods
-from .local_haplotype_inference.mean_field_approximation import run_dpm_mfa
+from .local_haplotype_inference.use_quality_scores import run_dpm_mfa as use_quality_scores
 
 
 #################################################
@@ -226,19 +226,18 @@ def run_dpm(run_setting):
         except Exception as e:
             logging.error(f'{filein} - Run failed: {e}')
 
-    elif inference_type == 'mean_field_approximation':
-        run_dpm_mfa.main(
-                 freads_in=filein,
-                 fref_in=ref_in,
-                 fname_qualities= fname_qualities,
-                 output_dir='./',
-                 n_starts=int(n_mfa_starts),
-                 K=int(n_max_haplotypes),
-                 alpha0=float(a),
-                 alphabet = 'ACGT-',
-                 unique_modus = unique_modus,
-                 convergence_threshold = inference_convergence_threshold,
-                 )
+    elif inference_type == 'use_quality_scores':
+        use_quality_scores.main(freads_in=filein,
+                     fref_in=ref_in,
+                     fname_qualities= fname_qualities,
+                     output_dir='./',
+                     n_starts=int(n_mfa_starts),
+                     K=int(n_max_haplotypes),
+                     alpha0=float(a),
+                     alphabet = 'ACGT-',
+                     unique_modus = unique_modus,
+                     convergence_threshold = inference_convergence_threshold,
+                     )
 
     return
 
