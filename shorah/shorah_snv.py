@@ -226,6 +226,7 @@ def getSNV(ref, window_thresh=0.9):
     """
 
     all_snp = {}
+    tmp = []
     # cycle over all windows reported in coverage.txt
     with open("coverage.txt") as cov_file, open(
         "raw_snv_collected.tsv", "w"
@@ -384,6 +385,7 @@ def main(args):
     max_coverage = args.max_coverage
     ignore_indels = args.ignore_indels
     posterior_thresh = args.posterior_thresh
+    path_insert_file = args.path_insert_file
 
     logging.info(str(inspect.getfullargspec(main)))
     ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
