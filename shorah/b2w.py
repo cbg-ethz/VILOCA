@@ -154,7 +154,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     reference_name = tiling_strategy.get_reference_name()
     tiling = tiling_strategy.get_window_tilings()
     region_end = tiling_strategy.get_region_end()
-
+    print(tiling)
     permitted_reads_per_location = _calc_location_maximum_reads(
         samfile,
         reference_name,

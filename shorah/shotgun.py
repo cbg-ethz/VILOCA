@@ -52,7 +52,7 @@ else:
 
 # import local haplotype inference methods
 from .local_haplotype_inference.use_quality_scores import run_dpm_mfa as use_quality_scores
-
+from .local_haplotype_inference.learn_error_params import run_dpm_mfa as learn_error_params
 
 #################################################
 # a common user should not edit above this line #
@@ -230,6 +230,18 @@ def run_dpm(run_setting):
         use_quality_scores.main(freads_in=filein,
                      fref_in=ref_in,
                      fname_qualities= fname_qualities,
+                     output_dir='./',
+                     n_starts=int(n_mfa_starts),
+                     K=int(n_max_haplotypes),
+                     alpha0=float(a),
+                     alphabet = 'ACGT-',
+                     unique_modus = unique_modus,
+                     convergence_threshold = inference_convergence_threshold,
+                     )
+
+    elif inference_type == 'learn_error_params':
+        learn_error_params.main(freads_in=filein,
+                     fref_in=ref_in,
                      output_dir='./',
                      n_starts=int(n_mfa_starts),
                      K=int(n_max_haplotypes),
