@@ -361,7 +361,7 @@ def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, un
 
     for f1 in file1:
         winFile, chr1, beg, end, cov = f1.rstrip().split('\t')
-        j = min(300_000, int(cov) * 15)
+        j = min(300000, int(cov) * 20)
         rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold))
 
     del end
@@ -426,6 +426,7 @@ def main(args):
     """
     from multiprocessing import Pool, cpu_count
     import glob
+    import math
     import time
     import pysam
 
@@ -504,7 +505,7 @@ def main(args):
         b2w.build_windows(
             in_bam,
             strategy,
-            win_min_ext,
+            math.floor(win_min_ext * win_length),
             max_coverage,
             cov_thrd,
             in_fasta
@@ -565,7 +566,7 @@ def main(args):
     # parse corrected reads
     proposed = {}
     for i in runlist:
-        winFile, j, a, s, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold = i
+        winFile, j, a, s, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus,inference_convergence_threshold = i
         del a  # in future alpha might be different on each window
         del s
         # greedy re match to handle situation where '.' or '-' appears in the
