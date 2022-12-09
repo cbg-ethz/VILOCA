@@ -111,13 +111,13 @@ def load_fasta_and_qualities(fname_fasta, fname_qualities, alphabet,unique_modus
         reads_list[-1].phred_quality_score = qualities[idx]
 
     if unique_modus:
-        reads_list = unique_reads_list_qualities(reads_list)
+        reads_list = unique_reads_list(reads_list)
     qualities = get_qualities(reads_list)
 
     return reads_list, qualities
 
 
-def unique_reads_list_qualities(reads_list):
+def unique_reads_list(reads_list):
     # test for unique reads_list
     for i, temp_read in enumerate(reads_list):
         if temp_read.weight > 0.0:

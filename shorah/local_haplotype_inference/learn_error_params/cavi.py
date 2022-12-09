@@ -34,7 +34,6 @@ def multistart_cavi(
     reads_weights,
     n_starts,
     output_dir,
-    convergence_threshold,
 ):
 
     pool = mp.Pool(mp.cpu_count())
@@ -52,7 +51,6 @@ def multistart_cavi(
                 reads_weights,
                 start,
                 output_dir,
-                convergence_threshold,
             ),
             callback=collect_result,
         )
@@ -162,7 +160,7 @@ def run_cavi(
             state_init_dict,
             state_curr_dict,
         )
-
+        
         if iter % 2 == 0:
             history_elbo.append(elbo)
             history_mean_log_pi.append(state_curr_dict["mean_log_pi"])
@@ -174,29 +172,17 @@ def run_cavi(
             if np.isnan(elbo):
                 exit_message = "Error: ELBO is nan."
                 print(exit_message)
-                print(
-                    "mean_log_pi is nan",
-                    np.any(np.isnan(state_curr_dict["mean_log_pi"])),
-                )
-                print(
-                    "mean_log_gamma is nan",
-                    np.any(np.isnan(state_curr_dict["mean_log_gamma"])),
-                )
-                print(
-                    "mean_log_theta is nan",
-                    np.any(np.isnan(state_curr_dict["mean_log_theta"])),
-                )
-                print(
-                    "mean_cluster is nan",
-                    np.any(np.isnan(state_curr_dict["mean_cluster"])),
-                )
+                print("mean_log_pi is nan", np.any(np.isnan(state_curr_dict["mean_log_pi"])))
+                print("mean_log_gamma is nan", np.any(np.isnan(state_curr_dict["mean_log_gamma"])))
+                print("mean_log_theta is nan", np.any(np.isnan(state_curr_dict["mean_log_theta"])))
+                print("mean_cluster is nan", np.any(np.isnan(state_curr_dict["mean_cluster"])))
 
                 break
             elif (history_elbo[-2] > elbo) and np.abs(elbo - history_elbo[-2]) > 1e-08:
                 message = "Error: ELBO is decreasing."
                 exitflag = -1
                 break
-            elif np.abs(elbo - history_elbo[-2]) < convergence_threshold:
+            elif np.abs(elbo - history_elbo[-2]) < 1e-03:
                 converged = True
                 k += 1
                 message = "ELBO converged."
@@ -230,6 +216,7 @@ def run_cavi(
             "history_gamma_a": history_gamma_a,
             "history_gamma_b": history_gamma_b,
             "history_mean_log_gamma": history_mean_log_gamma,
+            "history_mean_haplo": history_mean_haplo,
             "history_mean_cluster": history_mean_cluster,
         }
     )

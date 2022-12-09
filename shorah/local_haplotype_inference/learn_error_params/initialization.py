@@ -52,18 +52,6 @@ def draw_init_state(n_clusters, alpha0, alphabet, reads_list, reference_binary):
         }
     )
 
-    if not qualities:
-        # draw the error params
-        k = np.random.uniform(low=0.5, high=1.0, size=2)
-        a, b = matches * k[0], mismatch * k[1]
-
-        theta0 = np.random.beta(a, b)
-        mean_log_theta = np.log(theta0), np.log(1-theta0)
-        state_init_dict['mean_log_theta'] = mean_log_theta
-        state_init_dict['theta_c'] = a
-        state_init_dict['theta_d'] = b
-
-
     return state_init_dict
 
 
