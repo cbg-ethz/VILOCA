@@ -448,6 +448,7 @@ def main(args):
     n_mfa_starts = args.n_mfa_starts
     unique_modus = args.unique_modus
     inference_convergence_threshold = args.conv_thres
+    extended_window_mode = args.extended_window_mode
 
     logging.info(' '.join(sys.argv))
 
@@ -508,7 +509,8 @@ def main(args):
             win_min_ext,
             max_coverage,
             cov_thrd,
-            in_fasta
+            in_fasta,
+            extended_window_mode=extended_window_mode
         )
         logging.info('finished b2w')
 

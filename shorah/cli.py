@@ -197,6 +197,9 @@ def main():
     parser_shotgun.add_argument('--non-unique_modus', action='store_false', dest="unique_modus",
                                 help="For inference: Make read set unique with read weights. Cannot be used with --sampler shorah.")
 
+    parser_shotgun.add_argument('--extended_window_mode', action='store_true', dest="extended_window_mode",
+                                help="Runs b2w in extended window mode where fake inserations are placed into reference and read.")
+
     parser_shotgun.set_defaults(func=shotgun_run)
 
     # create the parser for command "snv"
