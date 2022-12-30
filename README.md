@@ -75,8 +75,8 @@ docker run --name viloca --rm -w="/usr/app" -it $(docker build -q .) bash
 ```
 Run the following commands to copy the contents into the container and  install VILOCA inside Docker.
 ```bash
-docker cp . viloca:/usr/app
-poetry install --only-root
+docker cp . viloca:/usr/app # run outside Docker
+poetry install --only-root # run inside Docker
 ```
 
 This is the same setup as used in the CI at [`.github/workflows/test.yaml`](.github/workflows/test.yaml).
