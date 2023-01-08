@@ -93,7 +93,7 @@ def deletion_length(seq):
     return count
 
 
-def parseWindow(line, threshold=0.9):
+def parseWindow(line, ref1, threshold=0.9):
     """SNVs from individual support files, getSNV will build
     the consensus SNVs
     It returns a dictionary called snp with the following structure
@@ -112,7 +112,6 @@ def parseWindow(line, threshold=0.9):
     ref_filename = os.path.join("raw_reads", file_stem + ".ref.fas.gz")
 
     start = int(beg)
-    #refSlice = ref1[chrom][beg - 1 : end]
     max_snv = -1
 
     with gzip.open(haplo_filename, "rt") as window, gzip.open(ref_filename, "rt") as ref:
@@ -161,9 +160,13 @@ def parseWindow(line, threshold=0.9):
                                 # preceding position w.r.t. the reference
                                 # without a deletion
                                 pos_prev = pos - 1
-                                reference_seq = refSlice[
-                                    (pos_prev - 1 - start) : (pos_prev + del_len - start)
-                                ] # TODO pos_prev - 1 - beg might be out of range
+                                # reference_seq = refSlice[
+                                #     (pos_prev - 1 - start) : (pos_prev + del_len - start)
+                                # ] # TODO pos_prev - 1 - beg might be out of range
+                                reference_seq = ref1[chrom][
+                                    (pos_prev - 1) : (pos_prev + del_len)
+                                ]
+
                                 snp[snp_id] = SNV(
                                     chrom,
                                     haplotype_id,
@@ -226,7 +229,7 @@ def getSNV(ref, window_thresh=0.9):
     ) as f_collect:
         f_collect.write("\t".join(standard_header_row) + "\n")
         for i in cov_file:
-            snp = parseWindow(i, window_thresh)
+            snp = parseWindow(i, ref, window_thresh)
             winFile, chrom, beg, end, cov = i.rstrip().split("\t")
             # all_snp = join_snp_dict(all_snp, snp)
             for SNV_id, val in sorted(snp.items()):
