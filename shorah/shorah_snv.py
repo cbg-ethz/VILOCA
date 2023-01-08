@@ -93,7 +93,7 @@ def deletion_length(seq):
     return count
 
 
-def parseWindow(line, ref1, threshold=0.9):
+def parseWindow(line, threshold=0.9):
     """SNVs from individual support files, getSNV will build
     the consensus SNVs
     It returns a dictionary called snp with the following structure
@@ -116,7 +116,8 @@ def parseWindow(line, ref1, threshold=0.9):
     max_snv = -1
 
     with gzip.open(haplo_filename, "rt") as window, gzip.open(ref_filename, "rt") as ref:
-        refSlice = str(list(SeqIO.parse(ref, "fasta"))[0].seq).upper()
+        d = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(ref, "fasta")])
+        refSlice = d[chrom]
 
         for s in SeqIO.parse(window, "fasta"):
             seq = str(s.seq).upper()
@@ -225,7 +226,7 @@ def getSNV(ref, window_thresh=0.9):
     ) as f_collect:
         f_collect.write("\t".join(standard_header_row) + "\n")
         for i in cov_file:
-            snp = parseWindow(i, ref, window_thresh)
+            snp = parseWindow(i, window_thresh)
             winFile, chrom, beg, end, cov = i.rstrip().split("\t")
             # all_snp = join_snp_dict(all_snp, snp)
             for SNV_id, val in sorted(snp.items()):
