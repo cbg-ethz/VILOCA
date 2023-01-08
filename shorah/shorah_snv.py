@@ -56,12 +56,14 @@ import logging
 import numpy as np
 from Bio import SeqIO
 from re import search
-
+from math import log10
+import csv
+import inspect
+from datetime import date
 
 import libshorah
 
 SNP_id = namedtuple("SNP_id", ["pos", "var"])
-
 
 @dataclass
 class SNV:
@@ -102,45 +104,36 @@ def parseWindow(line, ref1, threshold=0.9):
 
     snp = {}
     reads = 0.0
-    winFile, chrom, beg, end, cov = line.rstrip().split("\t")
-    del [winFile, cov]
-    filename = "w-%s-%s-%s.reads-support.fas" % (chrom, beg, end)
+    # winFile, chrom, beg, end, cov
+    _, chrom, beg, end, _ = line.rstrip().split("\t")
 
-    # take cares of locations/format of support file
-    if os.path.exists(filename):
-        pass
-    elif os.path.exists("support/" + filename):
-        filename = "support/" + filename
-    elif os.path.exists("support/" + filename + ".gz"):
-        filename = "support/" + filename + ".gz"
-    elif os.path.exists(filename + ".gz"):
-        filename = filename + ".gz"
+    file_stem = "w-%s-%s-%s" % (chrom, beg, end)
+    haplo_filename = os.path.join("support", file_stem + ".reads-support.fas.gz")
+    ref_filename = os.path.join("raw_reads", file_stem + ".ref.fas.gz")
 
-    try:
-        if filename.endswith(".gz"):
-            window = gzip.open(filename, "rb" if sys.version_info < (3, 0) else "rt")
-        else:
-            window = open(filename, "r")
-    except IOError:
-        logging.error("File not found")
-        return snp
-
-    beg = int(beg)
-    end = int(end)
-    refSlice = ref1[chrom][beg - 1 : end]
+    start = int(beg)
+    #refSlice = ref1[chrom][beg - 1 : end]
     max_snv = -1
-    # sequences in support file exceeding the posterior threshold
-    for s in SeqIO.parse(window, "fasta"):
-        seq = str(s.seq).upper()
-        haplotype_id = str(s.id.split("|")[0]) + "-" + str(beg) + "-" + str(end)
-        match_obj = search("posterior=(.*)\s*ave_reads=(.*)", s.description)
-        post, av = float(match_obj.group(1)), float(match_obj.group(2))
-        if post > 1.0:
-            warnings.warn("posterior = %4.3f > 1" % post)
-            logging.warning("posterior = %4.3f > 1" % post)
-        if post >= threshold:
+
+    with gzip.open(haplo_filename, "rt") as window, gzip.open(ref_filename, "rt") as ref:
+        refSlice = str(list(SeqIO.parse(ref, "fasta"))[0].seq).upper()
+
+        for s in SeqIO.parse(window, "fasta"):
+            seq = str(s.seq).upper()
+            haplotype_id = str(s.id.split("|")[0]) + "-" + beg + "-" + end
+            match_obj = search("posterior=(.*)\s*ave_reads=(.*)", s.description)
+            post, av = float(match_obj.group(1)), float(match_obj.group(2))
+
+            if post > 1.0:
+                warnings.warn("posterior = %4.3f > 1" % post)
+                logging.warning("posterior = %4.3f > 1" % post)
+
+            # sequences in support file exceeding the posterior threshold
+            if post < threshold:
+                continue
+
             reads += av
-            pos = beg
+            pos = start
             tot_snv = 0
             aux_del = -1
             for idx, v in enumerate(refSlice):  # iterate on the reference
@@ -167,9 +160,9 @@ def parseWindow(line, ref1, threshold=0.9):
                                 # preceding position w.r.t. the reference
                                 # without a deletion
                                 pos_prev = pos - 1
-                                reference_seq = ref1[chrom][
-                                    (pos_prev - 1) : (pos_prev + del_len)
-                                ]
+                                reference_seq = refSlice[
+                                    (pos_prev - 1 - start) : (pos_prev + del_len - start)
+                                ] # TODO pos_prev - 1 - beg might be out of range
                                 snp[snp_id] = SNV(
                                     chrom,
                                     haplotype_id,
@@ -198,8 +191,6 @@ def parseWindow(line, ref1, threshold=0.9):
     for k, v in snp.items():
         v.support /= v.freq
         v.freq /= reads
-
-    window.close()  # TODO
 
     return snp
 
@@ -311,8 +302,8 @@ def writeRaw(all_snv, min_windows_coverage):
 
             if number_window_covering_SNV < max_number_window_covering_SNV:
                 filler = (max_number_window_covering_SNV - len(freq_list)) * ["*"]
-                freq_list = freq_list + filler
-                support_list = support_list + filler
+                freq_list += filler
+                support_list += filler
 
             write_line = write_line + freq_list + support_list
 
@@ -372,11 +363,6 @@ def BH(p_vals, n):
 
 def main(args):
     """main code"""
-    from Bio import SeqIO
-    from math import log10
-    import csv
-    import inspect
-    from datetime import date
 
     reference = args.f
     bam_file = args.b
@@ -398,7 +384,7 @@ def main(args):
         # min_windows_coverage=1 # just for one amplicon mode
     else:
         min_windows_coverage = 1
-    writeRaw(all_SNVs, min_windows_coverage=min_windows_coverage)
+    writeRaw(all_SNVs, min_windows_coverage)
 
     with open("raw_snv.tsv") as f_raw_snv:
         windows_header_row = f_raw_snv.readline().split("\t")
@@ -409,8 +395,6 @@ def main(args):
     a = " -a" if increment == 1 else ""  # TODO when is increment == 1 (amplimode)
 
     # run strand bias filter
-    # retcode_m = sb_filter(bam_file, "raw_snv.tsv", "raw_snvs_", sigma, amplimode=a, drop_indels=d,
-    #                      max_coverage=max_coverage)
     retcode_n = sb_filter(
         bam_file,
         "SNV.tsv",
@@ -425,8 +409,7 @@ def main(args):
         logging.error('sb_filter exited with error %d', retcode_m)
         sys.exit()
 
-    # parse the p values from raw_snv_* file
-    snpFile = glob.glob("SNVs_*.tsv")[0]  # takes the first file only
+    snpFile = glob.glob("SNVs_*.tsv")[0] # takes the first file only
     logging.debug(f"For BH - selected file: {snpFile}")
 
     write_list = []

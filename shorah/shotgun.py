@@ -193,6 +193,7 @@ def run_dpm(run_setting):
         shutil.move(fqual_fstgz, './')
         subprocess.check_call(["gunzip", "%s-qualities.gz" % stem])
 
+    logging.debug('Running sampler')
     if inference_type == 'shorah': # run the original sampler of ShoRAH
 
         # dn = sys.path[0]
@@ -201,7 +202,6 @@ def run_dpm(run_setting):
         #    (pipes.quote(filein), j, int(j * hist_fraction), a, init_K, seed)
 
         # TODO integration
-        logging.debug('Exec dpm_sampler')
         try:
             os.remove('./corrected.tmp')
             # os.remove('./assignment.tmp')
@@ -251,6 +251,7 @@ def run_dpm(run_setting):
                      #unique_modus = unique_modus,
                      #convergence_threshold = inference_convergence_threshold,
                      )
+    logging.debug('Finished sampler')
 
     return
 
@@ -743,6 +744,7 @@ def main(args):
 
     logging.info('running snv.py')
     args.increment = win_length // win_shifts # TODO remove dependency on these vars
+
     shorah_snv.main(args)
 
     # tidy snvs

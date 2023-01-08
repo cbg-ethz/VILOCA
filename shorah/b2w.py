@@ -260,7 +260,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             applied everywhere now. Set this flag to `False` only for exact
             conformance with the old version (in tests).
         extended_window_mode: Mode where inserts are not deleted but kept. The
-            windows are instead extended.
+            windows are instead extended with artificial/fake deletions.
     """
     assert 0 <= win_min_ext <= 1
 
