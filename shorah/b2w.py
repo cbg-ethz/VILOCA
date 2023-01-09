@@ -50,7 +50,9 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
 def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[str],
     read_query_name: str|None, first_aligned_pos, last_aligned_pos,
     window_start, indel_map, max_ins_at_pos,
-    extended_window_mode) -> tuple[str, list[int]]:
+    extended_window_mode: bool, insertion_char: str) -> tuple[str, list[int]]:
+
+    assert insertion_char in ["-", "X"], "Illegal char represention insertion"
 
     all_inserts = dict()
     own_inserts = set()
@@ -108,7 +110,7 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
                 L -= k
                 in_idx += k
             for _ in range(L):
-                full_read.insert(in_idx, "-")
+                full_read.insert(in_idx, insertion_char)
                 full_qualities.insert(in_idx, "2")
 
             change_in_reference_space += max_ins_at_pos[pos]
@@ -170,7 +172,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 
         full_read, full_qualities = _build_one_full_read(full_read, full_qualities,
             read.query_name, first_aligned_pos, last_aligned_pos, window_start,
-            indel_map, max_ins_at_pos, extended_window_mode)
+            indel_map, max_ins_at_pos, extended_window_mode, "-")
 
         if (first_aligned_pos < window_start + 1 + window_length - minimum_overlap
                 and last_aligned_pos >= window_start + minimum_overlap - 2 # TODO justify 2
@@ -327,18 +329,20 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 np.save(f, np.asarray(arr_read_qualities_summary, dtype=np.int64), allow_pickle=True)
 
             ref = reffile.fetch(reference=reference_name, start=window_start-1, end=window_end)
-            _write_to_file([
-                f'>{reference_name} {window_start}\n' + ref
-            ], file_name + '.ref.fas')
 
             if extended_window_mode:
+                for file_name_comp, char in [("extended-ref", "X"), ("ref", "-")]:
+                    _write_to_file([
+                        f'>{reference_name} {window_start}\n' +
+                        _build_one_full_read(
+                            list(ref), list(ref), None,
+                            window_start, window_start + window_length - 1, window_start,
+                            indel_map, max_ins_at_pos, extended_window_mode, char)[0]
+                    ], f'{file_name}.{file_name_comp}.fas')
+            else:
                 _write_to_file([
-                    f'>{reference_name} {window_start}\n' +
-                    _build_one_full_read(
-                        list(ref), list(ref), None,
-                        window_start, window_start + window_length - 1, window_start,
-                        indel_map, max_ins_at_pos, extended_window_mode)[0]
-                ], file_name + '.extended-ref.fas')
+                    f'>{reference_name} {window_start}\n' + ref
+                ], file_name + '.ref.fas')
 
             if len(arr) > minimum_reads:
                 line = (
