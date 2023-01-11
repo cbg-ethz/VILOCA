@@ -18,6 +18,8 @@ def test_e2e_shorah():
         shallow=False
     )
 
+# TODO do all full cleanup in between
+
 def test_e2e_shorah_with_extended_window_mode():
     p = subprocess.run(
         "./shotgun_test.sh --extended_window_mode", shell=True, check=True, cwd=cwd

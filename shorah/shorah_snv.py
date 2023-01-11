@@ -79,19 +79,85 @@ class SNV:
 standard_header_row = ["Chromosome", "Pos", "Ref", "Var", "Frq", "Pst"]
 
 
-def deletion_length(seq):
+def deletion_length(seq, char):
     """Determines the length of the deletion. Note that a sequence migth have
     more than one deletion
     seq: substring of the reconstructed haplotype
+    char: character that is used to mark a deletion
     """
     count = 0
     for c in seq:
-        if c == "-":
+        if c == char:
             count += 1
         else:
             break
     return count
 
+def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
+    assert len(ref) == len(seq)
+    pos = start
+    tot_snv = 0
+    aux_del = -1
+
+    change_in_reference_space = 0
+
+    for idx, v in enumerate(ref):  # iterate on the reference
+
+        if v == "X":
+            change_in_reference_space += 1 # TODO everywhere
+
+        if v != seq[idx]:  # SNV detected, save it
+            if seq[idx] == "-": # TODO what is if window starts like that?
+                # Avoid counting multiple times a long deletion in the
+                # same haplotype
+                if idx > aux_del:
+                    tot_snv += 1
+                    # Check for gap characters and get the deletion
+                    # length
+                    del_len = deletion_length(seq[idx:], "-")
+                    aux_del = idx + del_len
+                    snp_id = SNP_id(pos=pos, var=seq[idx:aux_del])
+
+                    if snp_id in snp:
+                        # Aggregate counts for long deletions which
+                        # are observed in multiple haplotypes
+                        snp[snp_id].freq += av
+                        snp[snp_id].support += post * av
+                    else:
+                        # Comply with the convention to report deletion
+                        # in VCF format. Position correspond to the
+                        # preceding position w.r.t. the reference
+                        # without a deletion
+                        pos_prev = pos - 1
+                        reference_seq = ref[
+                            (pos_prev - start) : (pos_prev + del_len - start + 1)
+                        ] # TODO pos_prev - 1 - beg might be out of range
+                        # reference_seq = ref1[chrom][
+                        #     (pos_prev - 1) : (pos_prev + del_len)
+                        # ]
+
+                        snp[snp_id] = SNV(
+                            chrom,
+                            haplotype_id,
+                            pos_prev - change_in_reference_space,
+                            reference_seq,
+                            reference_seq[0],
+                            av,
+                            post * av,
+                        )
+            else:
+                tot_snv += 1
+                snp_id = SNP_id(pos=pos, var=seq[idx])
+                if snp_id in snp:
+                    snp[snp_id].freq += av
+                    snp[snp_id].support += post * av
+                else:
+                    snp[snp_id] = SNV(
+                        chrom, haplotype_id, pos, v, seq[idx], av, post * av
+                    )
+        pos += 1
+
+    return tot_snv
 
 def parseWindow(line, ref1, threshold=0.9):
     """SNVs from individual support files, getSNV will build
@@ -109,7 +175,9 @@ def parseWindow(line, ref1, threshold=0.9):
 
     file_stem = "w-%s-%s-%s" % (chrom, beg, end)
     haplo_filename = os.path.join("support", file_stem + ".reads-support.fas.gz")
-    ref_filename = os.path.join("raw_reads", file_stem + ".ref.fas.gz")
+    extended_window_mode = False # TODO
+    ref_name = "ref" if not extended_window_mode else "extended-ref" # TODO var
+    ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas.gz")
 
     start = int(beg)
     max_snv = -1
@@ -121,7 +189,7 @@ def parseWindow(line, ref1, threshold=0.9):
         for s in SeqIO.parse(window, "fasta"):
             seq = str(s.seq).upper()
             haplotype_id = str(s.id.split("|")[0]) + "-" + beg + "-" + end
-            match_obj = search("posterior=(.*)\s*ave_reads=(.*)", s.description)
+            match_obj = search(r"posterior=(.*)\s*ave_reads=(.*)", s.description)
             post, av = float(match_obj.group(1)), float(match_obj.group(2))
 
             if post > 1.0:
@@ -133,60 +201,11 @@ def parseWindow(line, ref1, threshold=0.9):
                 continue
 
             reads += av
-            pos = start
-            tot_snv = 0
-            aux_del = -1
-            for idx, v in enumerate(refSlice):  # iterate on the reference
-                if v != seq[idx]:  # SNV detected, save it
-                    if seq[idx] == "-":
-                        # Avoid counting multiple times a long deletion in the
-                        # same haplotype
-                        if idx > aux_del:
-                            tot_snv += 1
-                            # Check for gap characters and get the deletion
-                            # length
-                            del_len = deletion_length(seq[idx:])
-                            aux_del = idx + del_len
-                            snp_id = SNP_id(pos=pos, var=seq[idx:aux_del])
 
-                            if snp_id in snp:
-                                # Aggregate counts for long deletions which
-                                # are observed in multiple haplotypes
-                                snp[snp_id].freq += av
-                                snp[snp_id].support += post * av
-                            else:
-                                # Comply with the convention to report deletion
-                                # in VCF format. Position correspond to the
-                                # preceding position w.r.t. the reference
-                                # without a deletion
-                                pos_prev = pos - 1
-                                # reference_seq = refSlice[
-                                #     (pos_prev - 1 - start) : (pos_prev + del_len - start)
-                                # ] # TODO pos_prev - 1 - beg might be out of range
-                                reference_seq = ref1[chrom][
-                                    (pos_prev - 1) : (pos_prev + del_len)
-                                ]
+            tot_snv = _compare_ref_to_read(
+                refSlice, seq, start, snp, av, post, chrom, haplotype_id
+            )
 
-                                snp[snp_id] = SNV(
-                                    chrom,
-                                    haplotype_id,
-                                    pos_prev,
-                                    reference_seq,
-                                    reference_seq[0],
-                                    av,
-                                    post * av,
-                                )
-                    else:
-                        tot_snv += 1
-                        snp_id = SNP_id(pos=pos, var=seq[idx])
-                        if snp_id in snp:
-                            snp[snp_id].freq += av
-                            snp[snp_id].support += post * av
-                        else:
-                            snp[snp_id] = SNV(
-                                chrom, haplotype_id, pos, v, seq[idx], av, post * av
-                            )
-                pos += 1
             if tot_snv > max_snv:
                 max_snv = tot_snv
 

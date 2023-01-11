@@ -250,7 +250,7 @@ class MockAlignedSegment:
         "AATGGTA-CGTNNN"
     ], 10, 91, True)
 ])
-def test_some_func(mArr, spec, window_length, window_start, extended_window_mode, mocker):
+def test_run_one_window(mArr, spec, window_length, window_start, extended_window_mode, mocker):
 
     indels_map = []
     for m in mArr:
@@ -277,7 +277,7 @@ def test_some_func(mArr, spec, window_length, window_start, extended_window_mode
     mock_dict = mocker.MagicMock()
     mock_dict.__getitem__.return_value = 42
 
-    arr, arr_read_qualities_summary, arr_read_summary, counter = b2w._run_one_window(
+    arr, _, _, _ = b2w._run_one_window(
         mock_samfile,
         window_start,
         "HXB2-does-not-matter",

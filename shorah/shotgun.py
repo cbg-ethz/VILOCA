@@ -156,7 +156,7 @@ def run_dpm(run_setting):
     # greedy re match to handle situation where '.reads' appears in the ID
     stem = re.match(r'^(?P<stem>.*).reads', filein).group('stem')
     corgz = 'corrected/%s.reads-cor.fas.gz' % stem
-    if os.path.exists(corgz):
+    if os.path.exists(corgz): # FIXME might by use when run multiple times with different flags
         logging.debug('file %s already analysed, skipping', filein)
         return
 
