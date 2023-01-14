@@ -34,8 +34,6 @@ def test_compare_ref_to_read(ref, seq, spec):
     # WARNING: Pos is 1-based!
     tot_snv = _compare_ref_to_read(ref, seq, 1, snp, 1, 0.1, "HXB2", "some-id")
 
-    print(snp)
-
     assert snp == spec
 
     assert tot_snv == len(snp)
