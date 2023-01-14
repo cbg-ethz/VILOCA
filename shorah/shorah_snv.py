@@ -101,22 +101,38 @@ def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
 
     change_in_reference_space = 0
 
+    # Remove Xs if at same idx in both strings
+    idx = 0
+    for v in ref:
+        if v == seq[idx] == "X":
+            ref = ref[:idx] + ref[(idx+1):]
+            seq = seq[:idx] + seq[(idx+1):]
+            idx -= 1
+        idx += 1
+
     for idx, v in enumerate(ref):  # iterate on the reference
 
-        if v == "X":
-            change_in_reference_space += 1 # TODO everywhere
-
         if v != seq[idx]:  # SNV detected, save it
-            if seq[idx] == "-": # TODO what is if window starts like that?
-                # Avoid counting multiple times a long deletion in the
-                # same haplotype
+            assert not (v != "X" and seq[idx] == "X")
+
+            if seq[idx] == "-" or v == "X": # TODO what is if window starts like that?
+                char = "-"
+                relevant_seq = seq
+                secondary_seq = ref
+                if v == "X":
+                    char = "X"
+                    relevant_seq = ref
+                    secondary_seq = seq
+                # Avoid counting multiple times a long deletion in the same haplotype
                 if idx > aux_del:
                     tot_snv += 1
                     # Check for gap characters and get the deletion
                     # length
-                    del_len = deletion_length(seq[idx:], "-")
+                    del_len = deletion_length(relevant_seq[idx:], char)
                     aux_del = idx + del_len
-                    snp_id = SNP_id(pos=pos, var=seq[idx:aux_del])
+                    snp_id = SNP_id(
+                        pos=(pos - change_in_reference_space), var=seq[idx:aux_del] # TODO seq correct? check if this is unique
+                    )
 
                     if snp_id in snp:
                         # Aggregate counts for long deletions which
@@ -124,24 +140,18 @@ def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
                         snp[snp_id].freq += av
                         snp[snp_id].support += post * av
                     else:
-                        # Comply with the convention to report deletion
-                        # in VCF format. Position correspond to the
-                        # preceding position w.r.t. the reference
-                        # without a deletion
+                        # Report preceeding position as well
                         pos_prev = pos - 1
-                        reference_seq = ref[
+                        secondary_seq = secondary_seq[
                             (pos_prev - start) : (pos_prev + del_len - start + 1)
                         ] # TODO pos_prev - 1 - beg might be out of range
-                        # reference_seq = ref1[chrom][
-                        #     (pos_prev - 1) : (pos_prev + del_len)
-                        # ]
 
                         snp[snp_id] = SNV(
                             chrom,
                             haplotype_id,
                             pos_prev - change_in_reference_space,
-                            reference_seq,
-                            reference_seq[0],
+                            ref[pos_prev - start] if v =="X" else secondary_seq,
+                            secondary_seq if v =="X" else secondary_seq[0],
                             av,
                             post * av,
                         )
@@ -153,8 +163,17 @@ def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
                     snp[snp_id].support += post * av
                 else:
                     snp[snp_id] = SNV(
-                        chrom, haplotype_id, pos, v, seq[idx], av, post * av
+                        chrom,
+                        haplotype_id,
+                        pos - change_in_reference_space,
+                        v,
+                        seq[idx],
+                        av,
+                        post * av
                     )
+
+            if v == "X":
+                change_in_reference_space += 1
         pos += 1
 
     return tot_snv
