@@ -74,14 +74,16 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
                 # if indel_len != 0: # TODO
                 #     raise NotImplementedError("Deletions larger than 1 not expected.")
                 full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
-                full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
+                if full_qualities is not None:
+                    full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
                 continue
 
             elif is_del == 0 and not extended_window_mode:
                 assert indel_len > 0
                 for _ in range(indel_len):
                     full_read.pop(ref_pos + 1 - first_aligned_pos)
-                    full_qualities.pop(ref_pos + 1 - first_aligned_pos)
+                    if full_qualities is not None:
+                        full_qualities.pop(ref_pos + 1 - first_aligned_pos)
                 continue
 
             elif (is_del == 0 and extended_window_mode):
@@ -121,7 +123,8 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
                 in_idx += k
             for _ in range(L):
                 full_read.insert(in_idx, insertion_char)
-                full_qualities.insert(in_idx, "2")
+                if full_qualities is not None:
+                    full_qualities.insert(in_idx, "2")
 
             change_in_reference_space += max_ins_at_pos[pos]
 
@@ -166,7 +169,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             permitted_reads_per_location[first_aligned_pos] -= 1
 
         full_read = list(read.query_sequence)
-        full_qualities = list(read.query_qualities)
+        full_qualities = list(read.query_qualities) if read.query_qualities is not None else None
 
         for ct_idx, ct in enumerate(read.cigartuples):
             # 0 = BAM_CMATCH, 1 = BAM_CINS, 2 = BAM_CDEL, 7 = BAM_CEQUAL, 8 = BAM_CDIFF
@@ -176,7 +179,9 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 for _ in range(ct[1]):
                     k = 0 if ct_idx == 0 else len(full_read)-1
                     full_read.pop(k)
-                    full_qualities.pop(k)
+                    if full_qualities is not None:
+                        full_qualities.pop(k)
+
                 if ct_idx != 0 and ct_idx != len(read.cigartuples)-1:
                     raise ValueError("Soft clipping only possible on the edges of a read.")
             elif ct[0] == 5: # 5 = BAM_CHARD_CLIP
@@ -209,28 +214,34 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             s = slice(max(0, start_cut_out), end_cut_out)
 
             cut_out_read = full_read[s]
-            cut_out_qualities = full_qualities[s]
+            if full_qualities is None:
+                logging.warning("No sequencing quality scores provided in alignment file. Run --sampler learn_error_params.")
+                cut_out_qualities = None
+            else:
+                cut_out_qualities = full_qualities[s]
 
             k = (window_start + original_window_length - 1 - last_aligned_pos
                 + num_inserts_right_of_read)
 
             if k > 0:
                 cut_out_read = cut_out_read + k * "N"
-                cut_out_qualities = cut_out_qualities + k * [2]
-                # Phred scores have a minimal value of 2, where an “N” is inserted
-                # https://www.zymoresearch.com/blogs/blog/what-are-phred-scores
-
+                if full_qualities is not None:
+                    cut_out_qualities = cut_out_qualities + k * [2]
+                    # Phred scores have a minimal value of 2, where an “N” is inserted
+                    # https://www.zymoresearch.com/blogs/blog/what-are-phred-scores
             if start_cut_out < 0:
                 cut_out_read = (-start_cut_out + num_inserts_left_of_read) * "N" + cut_out_read
-                cut_out_qualities = (-start_cut_out + num_inserts_left_of_read) * [2] + cut_out_qualities
+                if full_qualities is not None:
+                    cut_out_qualities = (-start_cut_out + num_inserts_left_of_read) * [2] + cut_out_qualities
 
             assert len(cut_out_read) == window_length, (
                 "read unequal window size",
                 read.query_name, first_aligned_pos, cut_out_read, window_start, window_length, read.reference_end
             )
-            assert len(cut_out_qualities) == window_length, (
-                "quality unequal window size"
-            )
+            if cut_out_qualities is not None:
+                assert len(cut_out_qualities) == window_length, (
+                    "quality unequal window size"
+                )
 
             if exact_conformance_fix_0_1_basing_in_reads == False:
                 # first_aligned_pos is 0-based
