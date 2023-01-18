@@ -18,12 +18,12 @@ from shorah.shorah_snv import _compare_ref_to_read, SNP_id, SNV
     ("AA-X-GCXGG", "AA-G-TCX-G", {
         SNP_id(pos=4, var='G'): SNV(chrom='HXB2', haplotype_id='some-id', pos=3, ref='-', var='-G', freq=1, support=0.1),
         SNP_id(pos=6, var='T'): SNV(chrom='HXB2', haplotype_id='some-id', pos=5, ref='G', var='T', freq=1, support=0.1),
-        SNP_id(pos=7, var='-'): SNV(chrom='HXB2', haplotype_id='some-id', pos=6, ref='CG', var='C', freq=1, support=0.1)
+        SNP_id(pos=7, var='-'): SNV(chrom='HXB2', haplotype_id='some-id', pos=6, ref='CG', var='C', freq=1, support=0.1) # FIXME pos=8 ?
     }),
     ("AXXG", "AGGG", {
         SNP_id(pos=2, var='GG'): SNV(chrom='HXB2', haplotype_id='some-id', pos=1, ref='A', var='AGG', freq=1, support=0.1)
     }),
-    ("ACXXXXGT", "ACGGXCCT", {
+    ("ACXXXXGT", "ACGGXCCT", { # Not a realistic case
         SNP_id(pos=3, var='GGC'): SNV(chrom='HXB2', haplotype_id='some-id', pos=2, ref='C', var='CGGC', freq=1, support=0.1),
         SNP_id(pos=6, var='C'): SNV(chrom='HXB2', haplotype_id='some-id', pos=3, ref='G', var='C', freq=1, support=0.1),
     })
