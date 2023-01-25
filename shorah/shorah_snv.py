@@ -63,7 +63,10 @@ from datetime import date
 
 import libshorah
 
-SNP_id = namedtuple("SNP_id", ["pos", "var"])
+SNP_id = namedtuple("SNP_id", [
+    "pos", # a positon in (extended) reference space
+    "var" # the variant
+])
 
 @dataclass
 class SNV:
@@ -79,7 +82,7 @@ class SNV:
 standard_header_row = ["Chromosome", "Pos", "Ref", "Var", "Frq", "Pst"]
 
 
-def deletion_length(seq, char):
+def _deletion_length(seq, char):
     """Determines the length of the deletion. Note that a sequence migth have
     more than one deletion
     seq: substring of the reconstructed haplotype
@@ -93,22 +96,20 @@ def deletion_length(seq, char):
             break
     return count
 
+def _count_double_X(ref, seq, x):
+    for i in reversed(range(x + 1)):
+        if not ref[i] == seq[i] == "X":
+            return x - i
+    return 0
+
 def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
     assert len(ref) == len(seq)
+
     pos = start
     tot_snv = 0
     aux_del = -1
 
     change_in_reference_space = 0
-
-    # Remove Xs if at same idx in both strings
-    idx = 0
-    for v in ref:
-        if v == seq[idx] == "X":
-            ref = ref[:idx] + ref[(idx+1):]
-            seq = seq[:idx] + seq[(idx+1):]
-            idx -= 1
-        idx += 1
 
     for idx, v in enumerate(ref):  # iterate on the reference
 
@@ -128,10 +129,10 @@ def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
                     tot_snv += 1
                     # Check for gap characters and get the deletion
                     # length
-                    del_len = deletion_length(relevant_seq[idx:], char)
+                    del_len = _deletion_length(relevant_seq[idx:], char)
                     aux_del = idx + del_len
                     snp_id = SNP_id(
-                        pos=(pos - change_in_reference_space), var=seq[idx:aux_del] # TODO seq correct? check if this is unique
+                        pos=pos, var=seq[idx:aux_del]
                     )
 
                     if snp_id in snp:
@@ -142,15 +143,16 @@ def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
                     else:
                         # Report preceeding position as well
                         pos_prev = pos - 1
-                        secondary_seq = secondary_seq[
-                            (pos_prev - start) : (pos_prev + del_len - start + 1)
+                        num_double_X = _count_double_X(ref, seq, pos_prev - start)
+                        secondary_seq = secondary_seq[pos_prev - start - num_double_X] + secondary_seq[
+                            (pos - start) : (pos_prev + del_len - start + 1)
                         ] # TODO pos_prev - 1 - beg might be out of range
 
                         snp[snp_id] = SNV(
                             chrom,
                             haplotype_id,
                             pos_prev - change_in_reference_space,
-                            ref[pos_prev - start] if v =="X" else secondary_seq,
+                            ref[pos_prev - start - num_double_X] if v =="X" else secondary_seq,
                             secondary_seq if v =="X" else secondary_seq[0],
                             av,
                             post * av,
@@ -172,8 +174,9 @@ def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
                         post * av
                     )
 
-            if v == "X":
-                change_in_reference_space += 1
+        if v == "X":
+            change_in_reference_space += 1
+
         pos += 1
 
     return tot_snv
