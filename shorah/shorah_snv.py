@@ -153,7 +153,7 @@ def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
                             haplotype_id,
                             pos_prev - change_in_reference_space,
                             ref[pos_prev - start - num_double_X] if v =="X" else secondary_seq,
-                            secondary_seq if v =="X" else secondary_seq[0],
+                            secondary_seq if v =="X" else relevant_seq[pos_prev - start - num_double_X],
                             av,
                             post * av,
                         )

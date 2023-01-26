@@ -6,7 +6,7 @@ from shorah.shorah_snv import _compare_ref_to_read, SNP_id, SNV
     ("AACTTA", "AGA--A", {
         SNP_id(pos=2, var='G'): SNV(chrom='HXB2', haplotype_id='some-id', pos=2, ref='A', var='G', freq=1, support=0.1),
         SNP_id(pos=3, var='A'): SNV(chrom='HXB2', haplotype_id='some-id', pos=3, ref='C', var='A', freq=1, support=0.1),
-        SNP_id(pos=4, var='--'): SNV(chrom='HXB2', haplotype_id='some-id', pos=3, ref='CTT', var='C', freq=1, support=0.1)
+        SNP_id(pos=4, var='--'): SNV(chrom='HXB2', haplotype_id='some-id', pos=3, ref='CTT', var='A', freq=1, support=0.1)
     }),
     ("AA--G", "A---T", {
         SNP_id(pos=2, var='---'): SNV(chrom='HXB2', haplotype_id='some-id', pos=1, ref='AA--', var='A', freq=1, support=0.1),
@@ -15,7 +15,7 @@ from shorah.shorah_snv import _compare_ref_to_read, SNP_id, SNV
     ("AA--X-GC", "AA--X-TC", {
         SNP_id(pos=7, var='T'): SNV(chrom='HXB2', haplotype_id='some-id', pos=6, ref='G', var='T', freq=1, support=0.1),
     }),
-    ("AA-X-GCXGG", "AA-G-TCX-G", { # TODO pos in SNP_id in extended reference space
+    ("AA-X-GCXGG", "AA-G-TCX-G", {
         SNP_id(pos=4, var='G'): SNV(chrom='HXB2', haplotype_id='some-id', pos=3, ref='-', var='-G', freq=1, support=0.1),
         SNP_id(pos=6, var='T'): SNV(chrom='HXB2', haplotype_id='some-id', pos=5, ref='G', var='T', freq=1, support=0.1),
         SNP_id(pos=9, var='-'): SNV(chrom='HXB2', haplotype_id='some-id', pos=6, ref='CG', var='C', freq=1, support=0.1)
