@@ -80,3 +80,8 @@ poetry install --only-root # run inside Docker
 ```
 
 This is the same setup as used in the CI at [`.github/workflows/test.yaml`](.github/workflows/test.yaml).
+
+## Profiling
+```bash
+poetry run python3 -m cProfile -m shorah shotgun ...
+```
