@@ -3,6 +3,7 @@ from typing import Optional
 from shorah.tiling import TilingStrategy, EquispacedTilingStrategy
 import numpy as np
 import math
+import logging
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
@@ -161,7 +162,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         full_qualities = list(read.query_qualities)
 
         for ct_idx, ct in enumerate(read.cigartuples):
-            if ct[0] in [0,1,2,7,8]: # 0 = BAM_CMATCH, 1 = BAM_CINS, 2 = BAM_CDEL, 7 = BAM_CEQUAL, 8 = BAM_CDIFF
+            # 0 = BAM_CMATCH, 1 = BAM_CINS, 2 = BAM_CDEL, 7 = BAM_CEQUAL, 8 = BAM_CDIFF
+            if ct[0] in [0,1,2,7,8]:
                 pass
             elif ct[0] == 4: # 4 = BAM_CSOFT_CLIP
                 for _ in range(ct[1]):
@@ -170,6 +172,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                     full_qualities.pop(k)
                 if ct_idx != 0 and ct_idx != len(read.cigartuples)-1:
                     raise ValueError("Soft clipping only possible on the edges of a read.")
+            elif ct[0] == 5: # 5 = BAM_CHARD_CLIP
+                logging.debug("[b2w] Hard clipping detected")
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
