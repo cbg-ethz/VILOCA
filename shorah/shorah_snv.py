@@ -204,32 +204,36 @@ def parseWindow(line, ref1, threshold=0.9):
     start = int(beg)
     max_snv = -1
 
-    with gzip.open(haplo_filename, "rt") as window, gzip.open(ref_filename, "rt") as ref:
-        d = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(ref, "fasta")])
-        refSlice = d[chrom]
+    try:
+        with gzip.open(haplo_filename, "rt") as window, gzip.open(ref_filename, "rt") as ref:
+            d = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(ref, "fasta")])
+            refSlice = d[chrom]
 
-        for s in SeqIO.parse(window, "fasta"):
-            seq = str(s.seq).upper()
-            haplotype_id = str(s.id.split("|")[0]) + "-" + beg + "-" + end
-            match_obj = search(r"posterior=(.*)\s*ave_reads=(.*)", s.description)
-            post, av = float(match_obj.group(1)), float(match_obj.group(2))
+            for s in SeqIO.parse(window, "fasta"):
+                seq = str(s.seq).upper()
+                haplotype_id = str(s.id.split("|")[0]) + "-" + beg + "-" + end
+                match_obj = search(r"posterior=(.*)\s*ave_reads=(.*)", s.description)
+                post, av = float(match_obj.group(1)), float(match_obj.group(2))
 
-            if post > 1.0:
-                warnings.warn("posterior = %4.3f > 1" % post)
-                logging.warning("posterior = %4.3f > 1" % post)
+                if post > 1.0:
+                    warnings.warn("posterior = %4.3f > 1" % post)
+                    logging.warning("posterior = %4.3f > 1" % post)
 
-            # sequences in support file exceeding the posterior threshold
-            if post < threshold:
-                continue
+                # sequences in support file exceeding the posterior threshold
+                if post < threshold:
+                    continue
 
-            reads += av
+                reads += av
 
-            tot_snv = _compare_ref_to_read(
-                refSlice, seq, start, snp, av, post, chrom, haplotype_id
-            )
+                tot_snv = _compare_ref_to_read(
+                    refSlice, seq, start, snp, av, post, chrom, haplotype_id
+                )
 
-            if tot_snv > max_snv:
-                max_snv = tot_snv
+                if tot_snv > max_snv:
+                    max_snv = tot_snv
+    except FileNotFoundError as not_found:
+        # Known bug
+        logging.warning(f"{not_found.filename} was not found. All reads might start with N. Skipped.")
 
     logging.info("max number of snvs per sequence found: %d", max_snv)
     # normalize

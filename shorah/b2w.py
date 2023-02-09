@@ -78,9 +78,7 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
                     full_qualities.pop(ref_pos + 1 - first_aligned_pos)
                 continue
 
-            elif (is_del == 0 and extended_window_mode): #and
-                  #first_aligned_pos <= ref_pos <= last_aligned_pos): #and # TODO should not be necessary of id in indel_map unique
-                  #window_start <= ref_pos < window_start + original_window_length):
+            elif (is_del == 0 and extended_window_mode):
 
                 own_inserts.add((ref_pos, indel_len))
                 change_in_reference_space_ins += indel_len
@@ -92,8 +90,7 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
 
         if (extended_window_mode and
             (name != read_query_name or start != first_aligned_pos or cigar_hash != full_read_cigar_hash) and
-            first_aligned_pos <= ref_pos <= last_aligned_pos and is_del == 0): #and
-            #window_start <= ref_pos < window_start + original_window_length): # TODO edge values left
+            first_aligned_pos <= ref_pos <= last_aligned_pos and is_del == 0):
 
             all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
 
@@ -185,7 +182,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             read.query_name, hash(read.cigarstring), first_aligned_pos, last_aligned_pos,
             indel_map, max_ins_at_pos, extended_window_mode, "-")
 
-        if (first_aligned_pos < window_start + 1 + window_length - minimum_overlap
+        if (first_aligned_pos + minimum_overlap < window_start + 1 + window_length
                 and last_aligned_pos >= window_start + minimum_overlap - 2 # TODO justify 2
                 and len(full_read) >= minimum_overlap):
 
@@ -194,7 +191,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             num_inserts_left_of_window = 0
             if extended_window_mode:
                 for pos, val in max_ins_at_pos.items():
-                    if last_aligned_pos < pos < window_start + original_window_length: # TODO <= is fishy
+                    if last_aligned_pos < pos < window_start + original_window_length:
                         num_inserts_right_of_read += val
                     if window_start <= pos < first_aligned_pos:
                         num_inserts_left_of_read += val
@@ -245,7 +242,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 
     counter = window_start + window_length
 
-    return arr, arr_read_qualities_summary, arr_read_summary, counter
+    return arr, arr_read_qualities_summary, arr_read_summary, counter, window_length
 
 
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
@@ -304,7 +301,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     )
 
     for idx, (window_start, window_length) in enumerate(tiling):
-        arr, arr_read_qualities_summary, arr_read_summary, counter = _run_one_window(
+        (arr, arr_read_qualities_summary, arr_read_summary,
+         counter, control_window_length) = _run_one_window(
             samfile,
             window_start - 1, # make 0 based
             reference_name,
@@ -347,17 +345,21 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
 
             if extended_window_mode:
                 for file_name_comp, char in [("extended-ref", "X"), ("ref", "-")]:
+                    res_ref = _build_one_full_read(
+                        list(ref), list(ref), None, None,
+                        window_start, window_end,
+                        indel_map, max_ins_at_pos, extended_window_mode, char
+                    )[0]
                     _write_to_file([
-                        f'>{reference_name} {window_start}\n' +
-                        _build_one_full_read(
-                            list(ref), list(ref), None, None,
-                            window_start, window_start + window_length - 1,
-                            indel_map, max_ins_at_pos, extended_window_mode, char)[0]
+                        f'>{reference_name} {window_start}\n' + res_ref
                     ], f'{file_name}.{file_name_comp}.fas')
+
+                    assert control_window_length == len(res_ref)
             else:
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + ref
                 ], file_name + '.ref.fas')
+                assert control_window_length == len(ref)
 
             if len(arr) > minimum_reads:
                 line = (
