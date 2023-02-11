@@ -351,23 +351,26 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                         window_start-1, window_end-1,
                         indel_map, max_ins_at_pos, extended_window_mode, char
                     )[0]
+
+                    k = max(0, control_window_length - len(res_ref))
+                    res_ref += k * "N"
+
                     _write_to_file([
                         f'>{reference_name} {window_start}\n' + res_ref
                     ], f'{file_name}.{file_name_comp}.fas')
 
-                    if idx != len(tiling)-1: # assert does not hold for the last window
-                        assert control_window_length == len(res_ref), (
-                            f"""
-                                Reference ({file_name_comp}) does not have same length as the window.
-                                Location: {file_name}
-                                Ref: {len(res_ref)}
-                                Win: {control_window_length}
-                            """
-                        )
+                    assert control_window_length == len(res_ref), (
+                        f"""
+                            Reference ({file_name_comp}) does not have same length as the window.
+                            Location: {file_name}
+                            Ref: {len(res_ref)}
+                            Win: {control_window_length}
+                        """
+                    )
 
             else:
                 k = max(0, control_window_length - len(ref))
-                ref += k * "N" # TODO should be added above as well
+                ref += k * "N"
 
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + ref
