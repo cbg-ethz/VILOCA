@@ -347,19 +347,30 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 for file_name_comp, char in [("extended-ref", "X"), ("ref", "-")]:
                     res_ref = _build_one_full_read(
                         list(ref), list(ref), None, None,
-                        window_start, window_end,
+                        window_start-1, window_end-1,
                         indel_map, max_ins_at_pos, extended_window_mode, char
                     )[0]
                     _write_to_file([
                         f'>{reference_name} {window_start}\n' + res_ref
                     ], f'{file_name}.{file_name_comp}.fas')
 
-                    assert control_window_length == len(res_ref)
+                    assert control_window_length == len(res_ref), (
+                        f"""
+                            Reference ({file_name_comp}) does not have same length as the window.
+                            Ref: {len(res_ref)}, Win: {control_window_length}
+                        """
+                    )
+
             else:
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + ref
                 ], file_name + '.ref.fas')
-                assert control_window_length == len(ref)
+                assert control_window_length == len(ref), (
+                    f"""
+                        Reference does not have same length as the window.
+                        Ref: {len(ref)}, Win: {control_window_length}
+                    """
+                )
 
             if len(arr) > minimum_reads:
                 line = (
