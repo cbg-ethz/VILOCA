@@ -324,6 +324,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             end_extended_by_a_window = region_end + (tiling[1][0]-tiling[0][0])*3
         else:
             end_extended_by_a_window = region_end + window_length*3
+
         for read in arr_read_summary:
             if idx == len(tiling) - 1 and read[1] > end_extended_by_a_window:
                 continue
@@ -354,21 +355,30 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                         f'>{reference_name} {window_start}\n' + res_ref
                     ], f'{file_name}.{file_name_comp}.fas')
 
-                    assert control_window_length == len(res_ref), (
-                        f"""
-                            Reference ({file_name_comp}) does not have same length as the window.
-                            Ref: {len(res_ref)}, Win: {control_window_length}
-                        """
-                    )
+                    if idx != len(tiling)-1: # assert does not hold for the last window
+                        assert control_window_length == len(res_ref), (
+                            f"""
+                                Reference ({file_name_comp}) does not have same length as the window.
+                                Location: {file_name}
+                                Ref: {len(res_ref)}
+                                Win: {control_window_length}
+                            """
+                        )
 
             else:
+                k = max(0, control_window_length - len(ref))
+                ref += k * "N" # TODO should be added above as well
+
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + ref
                 ], file_name + '.ref.fas')
+
                 assert control_window_length == len(ref), (
                     f"""
                         Reference does not have same length as the window.
-                        Ref: {len(ref)}, Win: {control_window_length}
+                        Location: {file_name}
+                        Ref: {len(ref)}
+                        Win: {control_window_length}
                     """
                 )
 
