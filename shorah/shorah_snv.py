@@ -181,7 +181,7 @@ def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
 
     return tot_snv
 
-def parseWindow(line, ref1, threshold=0.9):
+def parseWindow(line, extended_window_mode, threshold=0.9):
     """SNVs from individual support files, getSNV will build
     the consensus SNVs
     It returns a dictionary called snp with the following structure
@@ -197,8 +197,8 @@ def parseWindow(line, ref1, threshold=0.9):
 
     file_stem = "w-%s-%s-%s" % (chrom, beg, end)
     haplo_filename = os.path.join("support", file_stem + ".reads-support.fas.gz")
-    extended_window_mode = False # TODO
-    ref_name = "ref" if not extended_window_mode else "extended-ref" # TODO var
+
+    ref_name = "ref" if not extended_window_mode else "extended-ref"
     ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas.gz")
 
     start = int(beg)
@@ -253,7 +253,7 @@ def add_SNV_to_dict(all_dict, add_key, add_val):
     return all_dict
 
 
-def getSNV(ref, window_thresh=0.9):
+def getSNV(extended_window_mode, window_thresh=0.9):
     """Parses SNV from all windows and output the dictionary with all the
     information.
 
@@ -274,7 +274,7 @@ def getSNV(ref, window_thresh=0.9):
     ) as f_collect:
         f_collect.write("\t".join(standard_header_row) + "\n")
         for i in cov_file:
-            snp = parseWindow(i, ref, window_thresh)
+            snp = parseWindow(i, extended_window_mode, window_thresh)
             winFile, chrom, beg, end, cov = i.rstrip().split("\t")
             # all_snp = join_snp_dict(all_snp, snp)
             for SNV_id, val in sorted(snp.items()):
@@ -421,13 +421,14 @@ def main(args):
     ignore_indels = args.ignore_indels
     posterior_thresh = args.posterior_thresh
     path_insert_file = args.path_insert_file
+    extended_window_mode = args.extended_window_mode
 
     logging.info(str(inspect.getfullargspec(main)))
     ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
 
     # snpD_m is the file with the 'consensus' SNVs (from different windows)
     logging.debug("now parsing SNVs")
-    all_SNVs = getSNV(ref_m, posterior_thresh)
+    all_SNVs = getSNV(extended_window_mode, posterior_thresh)
     if path_insert_file is None:
         min_windows_coverage = 2  # TODO make variable
         # min_windows_coverage=1 # just for one amplicon mode
@@ -513,7 +514,7 @@ def main(args):
             f"##source=ShoRAH_{args.version}",
             f"##reference={args.f}",
         ]
-        for ref_name, ref_seq in ref_m.items():
+        for ref_name, ref_seq in ref_m.items(): # TODO can be removed? why?
             VCF_meta.append(
                 f"##contig=<ID={ref_name},length={len(ref_seq)}>",
             )
