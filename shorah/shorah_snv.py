@@ -102,7 +102,14 @@ def _count_double_X(ref, seq, x):
             return x - i
     return 0
 
-def _compare_ref_to_read(ref, seq, start, snp, av, post, chrom, haplotype_id):
+def _preprocess_seq_with_X(ref, seq):
+    for idx, v in enumerate(seq):
+        if v == "-" and ref[idx] == "X":
+            seq = seq[:idx] + "X" + seq[idx+1:]
+            assert len(seq) == len(ref)
+    return seq
+
+def _compare_ref_to_read(ref: str, seq: str, start, snp, av, post, chrom, haplotype_id):
     assert len(ref) == len(seq)
 
     pos = start
@@ -226,7 +233,7 @@ def parseWindow(line, extended_window_mode, threshold=0.9):
                 reads += av
 
                 tot_snv = _compare_ref_to_read(
-                    refSlice, seq, start, snp, av, post, chrom, haplotype_id
+                    refSlice, _preprocess_seq_with_X(refSlice, seq), start, snp, av, post, chrom, haplotype_id
                 )
 
                 if tot_snv > max_snv:
@@ -237,7 +244,7 @@ def parseWindow(line, extended_window_mode, threshold=0.9):
 
     logging.info("max number of snvs per sequence found: %d", max_snv)
     # normalize
-    for k, v in snp.items():
+    for _, v in snp.items():
         v.support /= v.freq
         v.freq /= reads
 
@@ -341,7 +348,7 @@ def writeRaw(all_snv, min_windows_coverage):
         f_raw_snv.write("\t".join(header_row) + "\n")
         f_SNV.write("\t".join(header_row) + "\n")
 
-        for SNV_id, val in sorted(all_snv.items()):
+        for _, val in sorted(all_snv.items()):
 
             write_line = [val[0].chrom, val[0].pos, val[0].ref, val[0].var]
             freq_list = [single_val.freq for single_val in val]
@@ -552,7 +559,7 @@ def main(args):
                 ]
 
                 # TODO: Why is the sampler returning mutations calls with freq==0 in all windows, is that a problem of the model?
-                # FIXME: not in csv
+                # TODO: not in csv
                 sum_Freq = 0
                 for freq in freqs_vcf:
                     try:

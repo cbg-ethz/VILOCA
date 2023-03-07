@@ -18,10 +18,12 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
         reference_name,
         max_depth=1_000_000, # TODO big enough?
         stepper="nofilter",
-        multiple_iterators=False,
+        multiple_iterators=False, # TODO true makes faster?
         ignore_overlaps=False,
+        adjust_capq_threshold=0,
         ignore_orphans=False,
-        min_base_quality=0,):
+        min_base_quality=0):
+
         budget[pileupcolumn.reference_pos] = min(
             pileupcolumn.nsegments,
             maximum_reads-1 # minus 1 because because maximum_reads is exclusive
@@ -29,6 +31,10 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
 
         max_at_this_pos = 0
         for pileupread in pileupcolumn.pileups:
+
+            # TODO
+            #assert not (pileupread.indel < 0 and pileupread.is_del == 0), "Pileup read contains unsupported params"
+
             if pileupread.indel > 0 or pileupread.is_del:
                 indel_map.add((
                     pileupread.alignment.query_name, # TODO is unique?
