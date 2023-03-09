@@ -13,7 +13,7 @@ def test_long_deletions():
 
     p = os.path.dirname(__file__)
     os.chdir(os.path.join(p, dir))
-    print(os.getcwd())
+
     # Input data
     bamfile = "test_aln.cram"
     snvsfile = "snv/SNV.tsv"

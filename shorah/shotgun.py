@@ -33,6 +33,15 @@ import logging
 import re
 import shutil
 import numpy as np
+from multiprocessing import Process, Pool, cpu_count
+import glob
+import time
+import pysam
+import random
+import subprocess
+from Bio import SeqIO
+import gzip
+
 
 import libshorah
 
@@ -92,7 +101,6 @@ untouched = [[]]
 def gzip_file(f_name):
     """Gzip a file and return the name of the gzipped, removing the original
     """
-    import gzip
     f_in = open(f_name, 'rb')
     f_out = gzip.open(f_name + '.gz', 'wb')
     f_out.writelines(f_in)
@@ -148,7 +156,6 @@ def b2w_logging(run_settings):
 def run_dpm(run_setting):
     """run the dirichlet process clustering
     """
-    import subprocess
 
     filein, j, a, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold = run_setting
 
@@ -156,7 +163,7 @@ def run_dpm(run_setting):
     # greedy re match to handle situation where '.reads' appears in the ID
     stem = re.match(r'^(?P<stem>.*).reads', filein).group('stem')
     corgz = 'corrected/%s.reads-cor.fas.gz' % stem
-    if os.path.exists(corgz):
+    if os.path.exists(corgz): # FIXME might by use when run multiple times with different flags
         logging.debug('file %s already analysed, skipping', filein)
         return
 
@@ -193,6 +200,7 @@ def run_dpm(run_setting):
         shutil.move(fqual_fstgz, './')
         subprocess.check_call(["gunzip", "%s-qualities.gz" % stem])
 
+    logging.debug('Running sampler')
     if inference_type == 'shorah': # run the original sampler of ShoRAH
 
         # dn = sys.path[0]
@@ -201,7 +209,6 @@ def run_dpm(run_setting):
         #    (pipes.quote(filein), j, int(j * hist_fraction), a, init_K, seed)
 
         # TODO integration
-        logging.debug('Exec dpm_sampler')
         try:
             os.remove('./corrected.tmp')
             # os.remove('./assignment.tmp')
@@ -251,6 +258,7 @@ def run_dpm(run_setting):
                      #unique_modus = unique_modus,
                      #convergence_threshold = inference_convergence_threshold,
                      )
+    logging.debug('Finished sampler')
 
     return
 
@@ -264,8 +272,7 @@ def correct_reads(chr_c, wstart, wend):
     # out_reads[match_rec.id][3] = mstop
     # out_reads[match_rec.id][4] = Sequence...
 
-    from Bio import SeqIO
-    import gzip
+
     try:
         if os.path.exists('corrected/w-%s-%s-%s.reads-cor.fas.gz' %
                           (chr_c, wstart, wend)):
@@ -303,7 +310,6 @@ def correct_reads(chr_c, wstart, wend):
 def get_prop(filename):
     """fetch the number of proposed clusters from .dbg file
     """
-    import gzip
 
     if os.path.exists(filename):
         h = open(filename)
@@ -329,7 +335,6 @@ def get_prop(filename):
 
 def base_break(baselist):
     """Break the tie if different corrections are found."""
-    import random
 
     for c1 in count:
         count[c1] = 0
@@ -425,10 +430,6 @@ def main(args):
     Performs the error correction analysis, running diri_sampler
     and analyzing the result
     """
-    from multiprocessing import Pool, cpu_count
-    import glob
-    import time
-    import pysam
 
     in_bam = args.b
     in_fasta = args.f
@@ -448,6 +449,7 @@ def main(args):
     n_mfa_starts = args.n_mfa_starts
     unique_modus = args.unique_modus
     inference_convergence_threshold = args.conv_thres
+    extended_window_mode = args.extended_window_mode
 
     logging.info(' '.join(sys.argv))
 
@@ -508,7 +510,8 @@ def main(args):
             win_min_ext,
             max_coverage,
             cov_thrd,
-            in_fasta
+            in_fasta,
+            extended_window_mode=extended_window_mode
         )
         logging.info('finished b2w')
 
@@ -546,7 +549,6 @@ def main(args):
         max_proc = min(max_proc, maxthreads)
     logging.info('CPU(s) count %u, max thread limit %u, will run %u parallel dpm_sampler', cpu_count(), maxthreads, max_proc)
 
-    from multiprocessing import Process
     all_processes = [Process(target=run_dpm, args=(run_set,)) for run_set in runlist]
     for p in all_processes:
       p.start()
@@ -741,6 +743,7 @@ def main(args):
 
     logging.info('running snv.py')
     args.increment = win_length // win_shifts # TODO remove dependency on these vars
+
     shorah_snv.main(args)
 
     # tidy snvs

@@ -56,12 +56,17 @@ import logging
 import numpy as np
 from Bio import SeqIO
 from re import search
-
+from math import log10
+import csv
+import inspect
+from datetime import date
 
 import libshorah
 
-SNP_id = namedtuple("SNP_id", ["pos", "var"])
-
+SNP_id = namedtuple("SNP_id", [
+    "pos", # a positon in (extended) reference space
+    "var" # the variant
+])
 
 @dataclass
 class SNV:
@@ -77,21 +82,113 @@ class SNV:
 standard_header_row = ["Chromosome", "Pos", "Ref", "Var", "Frq", "Pst"]
 
 
-def deletion_length(seq):
+def _deletion_length(seq, char):
     """Determines the length of the deletion. Note that a sequence migth have
     more than one deletion
     seq: substring of the reconstructed haplotype
+    char: character that is used to mark a deletion
     """
     count = 0
     for c in seq:
-        if c == "-":
+        if c == char:
             count += 1
         else:
             break
     return count
 
+def _count_double_X(ref, seq, x):
+    for i in reversed(range(x + 1)):
+        if not ref[i] == seq[i] == "X":
+            return x - i
+    return 0
 
-def parseWindow(line, ref1, threshold=0.9):
+def _preprocess_seq_with_X(ref, seq):
+    for idx, v in enumerate(seq):
+        if v == "-" and ref[idx] == "X":
+            seq = seq[:idx] + "X" + seq[idx+1:]
+            assert len(seq) == len(ref)
+    return seq
+
+def _compare_ref_to_read(ref: str, seq: str, start, snp, av, post, chrom, haplotype_id):
+    assert len(ref) == len(seq)
+
+    pos = start
+    tot_snv = 0
+    aux_del = -1
+
+    change_in_reference_space = 0
+
+    for idx, v in enumerate(ref):  # iterate on the reference
+
+        if v != seq[idx]:  # SNV detected, save it
+            assert not (v != "X" and seq[idx] == "X")
+
+            if seq[idx] == "-" or v == "X": # TODO what is if window starts like that?
+                char = "-"
+                relevant_seq = seq
+                secondary_seq = ref
+                if v == "X":
+                    char = "X"
+                    relevant_seq = ref
+                    secondary_seq = seq
+                # Avoid counting multiple times a long deletion in the same haplotype
+                if idx > aux_del:
+                    tot_snv += 1
+                    # Check for gap characters and get the deletion
+                    # length
+                    del_len = _deletion_length(relevant_seq[idx:], char)
+                    aux_del = idx + del_len
+                    snp_id = SNP_id(
+                        pos=pos, var=seq[idx:aux_del]
+                    )
+
+                    if snp_id in snp:
+                        # Aggregate counts for long deletions which
+                        # are observed in multiple haplotypes
+                        snp[snp_id].freq += av
+                        snp[snp_id].support += post * av
+                    else:
+                        # Report preceeding position as well
+                        pos_prev = pos - 1
+                        num_double_X = _count_double_X(ref, seq, pos_prev - start)
+                        secondary_seq = secondary_seq[pos_prev - start - num_double_X] + secondary_seq[
+                            (pos - start) : (pos_prev + del_len - start + 1)
+                        ] # TODO pos_prev - 1 - beg might be out of range
+
+                        snp[snp_id] = SNV(
+                            chrom,
+                            haplotype_id,
+                            pos_prev - change_in_reference_space,
+                            ref[pos_prev - start - num_double_X] if v =="X" else secondary_seq,
+                            secondary_seq if v =="X" else relevant_seq[pos_prev - start - num_double_X],
+                            av,
+                            post * av,
+                        )
+            else:
+                tot_snv += 1
+                snp_id = SNP_id(pos=pos, var=seq[idx])
+                if snp_id in snp:
+                    snp[snp_id].freq += av
+                    snp[snp_id].support += post * av
+                else:
+                    snp[snp_id] = SNV(
+                        chrom,
+                        haplotype_id,
+                        pos - change_in_reference_space,
+                        v,
+                        seq[idx],
+                        av,
+                        post * av
+                    )
+
+        if v == "X":
+            change_in_reference_space += 1
+
+        pos += 1
+
+    return tot_snv
+
+def parseWindow(line, extended_window_mode, threshold=0.9):
     """SNVs from individual support files, getSNV will build
     the consensus SNVs
     It returns a dictionary called snp with the following structure
@@ -102,104 +199,54 @@ def parseWindow(line, ref1, threshold=0.9):
 
     snp = {}
     reads = 0.0
-    winFile, chrom, beg, end, cov = line.rstrip().split("\t")
-    del [winFile, cov]
-    filename = "w-%s-%s-%s.reads-support.fas" % (chrom, beg, end)
+    # winFile, chrom, beg, end, cov
+    _, chrom, beg, end, _ = line.rstrip().split("\t")
 
-    # take cares of locations/format of support file
-    if os.path.exists(filename):
-        pass
-    elif os.path.exists("support/" + filename):
-        filename = "support/" + filename
-    elif os.path.exists("support/" + filename + ".gz"):
-        filename = "support/" + filename + ".gz"
-    elif os.path.exists(filename + ".gz"):
-        filename = filename + ".gz"
+    file_stem = "w-%s-%s-%s" % (chrom, beg, end)
+    haplo_filename = os.path.join("support", file_stem + ".reads-support.fas.gz")
+
+    ref_name = "ref" if not extended_window_mode else "extended-ref"
+    ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas.gz")
+
+    start = int(beg)
+    max_snv = -1
 
     try:
-        if filename.endswith(".gz"):
-            window = gzip.open(filename, "rb" if sys.version_info < (3, 0) else "rt")
-        else:
-            window = open(filename, "r")
-    except IOError:
-        logging.error("File not found")
-        return snp
+        with gzip.open(haplo_filename, "rt") as window, gzip.open(ref_filename, "rt") as ref:
+            d = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(ref, "fasta")])
+            refSlice = d[chrom]
 
-    beg = int(beg)
-    end = int(end)
-    refSlice = ref1[chrom][beg - 1 : end]
-    max_snv = -1
-    # sequences in support file exceeding the posterior threshold
-    for s in SeqIO.parse(window, "fasta"):
-        seq = str(s.seq).upper()
-        haplotype_id = str(s.id.split("|")[0]) + "-" + str(beg) + "-" + str(end)
-        match_obj = search("posterior=(.*)\s*ave_reads=(.*)", s.description)
-        post, av = float(match_obj.group(1)), float(match_obj.group(2))
-        if post > 1.0:
-            warnings.warn("posterior = %4.3f > 1" % post)
-            logging.warning("posterior = %4.3f > 1" % post)
-        if post >= threshold:
-            reads += av
-            pos = beg
-            tot_snv = 0
-            aux_del = -1
-            for idx, v in enumerate(refSlice):  # iterate on the reference
-                if v != seq[idx]:  # SNV detected, save it
-                    if seq[idx] == "-":
-                        # Avoid counting multiple times a long deletion in the
-                        # same haplotype
-                        if idx > aux_del:
-                            tot_snv += 1
-                            # Check for gap characters and get the deletion
-                            # length
-                            del_len = deletion_length(seq[idx:])
-                            aux_del = idx + del_len
-                            snp_id = SNP_id(pos=pos, var=seq[idx:aux_del])
+            for s in SeqIO.parse(window, "fasta"):
+                seq = str(s.seq).upper()
+                haplotype_id = str(s.id.split("|")[0]) + "-" + beg + "-" + end
+                match_obj = search(r"posterior=(.*)\s*ave_reads=(.*)", s.description)
+                post, av = float(match_obj.group(1)), float(match_obj.group(2))
 
-                            if snp_id in snp:
-                                # Aggregate counts for long deletions which
-                                # are observed in multiple haplotypes
-                                snp[snp_id].freq += av
-                                snp[snp_id].support += post * av
-                            else:
-                                # Comply with the convention to report deletion
-                                # in VCF format. Position correspond to the
-                                # preceding position w.r.t. the reference
-                                # without a deletion
-                                pos_prev = pos - 1
-                                reference_seq = ref1[chrom][
-                                    (pos_prev - 1) : (pos_prev + del_len)
-                                ]
-                                snp[snp_id] = SNV(
-                                    chrom,
-                                    haplotype_id,
-                                    pos_prev,
-                                    reference_seq,
-                                    reference_seq[0],
-                                    av,
-                                    post * av,
-                                )
-                    else:
-                        tot_snv += 1
-                        snp_id = SNP_id(pos=pos, var=seq[idx])
-                        if snp_id in snp:
-                            snp[snp_id].freq += av
-                            snp[snp_id].support += post * av
-                        else:
-                            snp[snp_id] = SNV(
-                                chrom, haplotype_id, pos, v, seq[idx], av, post * av
-                            )
-                pos += 1
-            if tot_snv > max_snv:
-                max_snv = tot_snv
+                if post > 1.0:
+                    warnings.warn("posterior = %4.3f > 1" % post)
+                    logging.warning("posterior = %4.3f > 1" % post)
+
+                # sequences in support file exceeding the posterior threshold
+                if post < threshold:
+                    continue
+
+                reads += av
+
+                tot_snv = _compare_ref_to_read(
+                    refSlice, _preprocess_seq_with_X(refSlice, seq), start, snp, av, post, chrom, haplotype_id
+                )
+
+                if tot_snv > max_snv:
+                    max_snv = tot_snv
+    except FileNotFoundError as not_found:
+        # Known bug
+        logging.warning(f"{not_found.filename} was not found. All reads might start with N. Skipped.")
 
     logging.info("max number of snvs per sequence found: %d", max_snv)
     # normalize
-    for k, v in snp.items():
+    for _, v in snp.items():
         v.support /= v.freq
         v.freq /= reads
-
-    window.close()  # TODO
 
     return snp
 
@@ -213,7 +260,7 @@ def add_SNV_to_dict(all_dict, add_key, add_val):
     return all_dict
 
 
-def getSNV(ref, window_thresh=0.9):
+def getSNV(extended_window_mode, window_thresh=0.9):
     """Parses SNV from all windows and output the dictionary with all the
     information.
 
@@ -234,7 +281,7 @@ def getSNV(ref, window_thresh=0.9):
     ) as f_collect:
         f_collect.write("\t".join(standard_header_row) + "\n")
         for i in cov_file:
-            snp = parseWindow(i, ref, window_thresh)
+            snp = parseWindow(i, extended_window_mode, window_thresh)
             winFile, chrom, beg, end, cov = i.rstrip().split("\t")
             # all_snp = join_snp_dict(all_snp, snp)
             for SNV_id, val in sorted(snp.items()):
@@ -301,7 +348,7 @@ def writeRaw(all_snv, min_windows_coverage):
         f_raw_snv.write("\t".join(header_row) + "\n")
         f_SNV.write("\t".join(header_row) + "\n")
 
-        for SNV_id, val in sorted(all_snv.items()):
+        for _, val in sorted(all_snv.items()):
 
             write_line = [val[0].chrom, val[0].pos, val[0].ref, val[0].var]
             freq_list = [single_val.freq for single_val in val]
@@ -311,8 +358,8 @@ def writeRaw(all_snv, min_windows_coverage):
 
             if number_window_covering_SNV < max_number_window_covering_SNV:
                 filler = (max_number_window_covering_SNV - len(freq_list)) * ["*"]
-                freq_list = freq_list + filler
-                support_list = support_list + filler
+                freq_list += filler
+                support_list += filler
 
             write_line = write_line + freq_list + support_list
 
@@ -372,11 +419,6 @@ def BH(p_vals, n):
 
 def main(args):
     """main code"""
-    from Bio import SeqIO
-    from math import log10
-    import csv
-    import inspect
-    from datetime import date
 
     reference = args.f
     bam_file = args.b
@@ -386,19 +428,20 @@ def main(args):
     ignore_indels = args.ignore_indels
     posterior_thresh = args.posterior_thresh
     path_insert_file = args.path_insert_file
+    extended_window_mode = args.extended_window_mode
 
     logging.info(str(inspect.getfullargspec(main)))
     ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
 
     # snpD_m is the file with the 'consensus' SNVs (from different windows)
     logging.debug("now parsing SNVs")
-    all_SNVs = getSNV(ref_m, posterior_thresh)
+    all_SNVs = getSNV(extended_window_mode, posterior_thresh)
     if path_insert_file is None:
         min_windows_coverage = 2  # TODO make variable
         # min_windows_coverage=1 # just for one amplicon mode
     else:
         min_windows_coverage = 1
-    writeRaw(all_SNVs, min_windows_coverage=min_windows_coverage)
+    writeRaw(all_SNVs, min_windows_coverage)
 
     with open("raw_snv.tsv") as f_raw_snv:
         windows_header_row = f_raw_snv.readline().split("\t")
@@ -409,8 +452,6 @@ def main(args):
     a = " -a" if increment == 1 else ""  # TODO when is increment == 1 (amplimode)
 
     # run strand bias filter
-    # retcode_m = sb_filter(bam_file, "raw_snv.tsv", "raw_snvs_", sigma, amplimode=a, drop_indels=d,
-    #                      max_coverage=max_coverage)
     retcode_n = sb_filter(
         bam_file,
         "SNV.tsv",
@@ -425,8 +466,7 @@ def main(args):
         logging.error('sb_filter exited with error %d', retcode_m)
         sys.exit()
 
-    # parse the p values from raw_snv_* file
-    snpFile = glob.glob("SNVs_*.tsv")[0]  # takes the first file only
+    snpFile = glob.glob("SNVs_*.tsv")[0] # takes the first file only
     logging.debug(f"For BH - selected file: {snpFile}")
 
     write_list = []
@@ -481,7 +521,7 @@ def main(args):
             f"##source=ShoRAH_{args.version}",
             f"##reference={args.f}",
         ]
-        for ref_name, ref_seq in ref_m.items():
+        for ref_name, ref_seq in ref_m.items(): # TODO can be removed? why?
             VCF_meta.append(
                 f"##contig=<ID={ref_name},length={len(ref_seq)}>",
             )
@@ -519,7 +559,7 @@ def main(args):
                 ]
 
                 # TODO: Why is the sampler returning mutations calls with freq==0 in all windows, is that a problem of the model?
-                # FIXME: not in csv
+                # TODO: not in csv
                 sum_Freq = 0
                 for freq in freqs_vcf:
                     try:

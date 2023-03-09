@@ -71,8 +71,17 @@ If there is no information on the sequencing amplicon strategy available, run:
 ## Development/CI with Docker
 The following command in the root directory will let you interact with the project locally through Docker.
 ```bash
-docker run --rm -w="/usr/app" -it $(docker build -q .) bash
+docker run --name viloca --rm -w="/usr/app" -it $(docker build -q .) bash
 ```
-Then run `poetry install --only-root` to install `shorah` inside Docker.
+Run the following commands to copy the contents into the container and  install VILOCA inside Docker.
+```bash
+docker cp . viloca:/usr/app # run outside Docker
+poetry install --only-root # run inside Docker
+```
 
 This is the same setup as used in the CI at [`.github/workflows/test.yaml`](.github/workflows/test.yaml).
+
+## Profiling
+```bash
+poetry run python3 -m cProfile -m shorah shotgun ...
+```
