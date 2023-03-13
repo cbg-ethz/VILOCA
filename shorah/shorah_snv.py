@@ -429,6 +429,7 @@ def main(args):
     posterior_thresh = args.posterior_thresh
     path_insert_file = args.path_insert_file
     extended_window_mode = args.extended_window_mode
+    min_windows_coverage = args.min_windows_coverage
 
     logging.info(str(inspect.getfullargspec(main)))
     ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
@@ -436,11 +437,9 @@ def main(args):
     # snpD_m is the file with the 'consensus' SNVs (from different windows)
     logging.debug("now parsing SNVs")
     all_SNVs = getSNV(extended_window_mode, posterior_thresh)
-    if path_insert_file is None:
-        min_windows_coverage = 2  # TODO make variable
-        # min_windows_coverage=1 # just for one amplicon mode
-    else:
+    if path_insert_file is not None:
         min_windows_coverage = 1
+
     writeRaw(all_SNVs, min_windows_coverage)
 
     with open("raw_snv.tsv") as f_raw_snv:
