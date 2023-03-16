@@ -356,8 +356,10 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             and len(arr) > 0) or len(tiling) == 1: # suppress output if window empty
 
             _write_to_file(arr, file_name + '.reads.fas')
-            with open(file_name + '.qualities.npy', 'wb') as f:
-                np.save(f, np.asarray(arr_read_qualities_summary, dtype=np.int64), allow_pickle=True)
+
+            if arr_read_qualities_summary[0] != np.array(None):
+                with open(file_name + '.qualities.npy', 'wb') as f:
+                    np.save(f, np.asarray(arr_read_qualities_summary, dtype=np.int64), allow_pickle=True)
 
             ref = reffile.fetch(reference=reference_name, start=window_start-1, end=window_end)
 
