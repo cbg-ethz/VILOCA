@@ -26,6 +26,9 @@ from shorah.shorah_snv import _compare_ref_to_read, SNP_id, SNV
     ("ACXXXXGT", "ACXGGCCT", {
         SNP_id(pos=4, var='GGC'): SNV(chrom='HXB2', haplotype_id='some-id', pos=2, ref='C', var='CGGC', freq=1, support=0.1),
         SNP_id(pos=7, var='C'): SNV(chrom='HXB2', haplotype_id='some-id', pos=3, ref='G', var='C', freq=1, support=0.1),
+    }),
+    ("ACXGT", "ACCGT", {
+        SNP_id(pos=3, var='C'): SNV(chrom='HXB2', haplotype_id='some-id', pos=2, ref='C', var='CC', freq=1, support=0.1),
     })
 ])
 def test_compare_ref_to_read(ref, seq, spec):

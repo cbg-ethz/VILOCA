@@ -450,6 +450,7 @@ def main(args):
     unique_modus = args.unique_modus
     inference_convergence_threshold = args.conv_thres
     extended_window_mode = args.extended_window_mode
+    exclude_non_var_pos_threshold = args.exclude_non_var_pos_threshold
 
     logging.info(' '.join(sys.argv))
 
@@ -511,7 +512,8 @@ def main(args):
             max_coverage,
             cov_thrd,
             in_fasta,
-            extended_window_mode=extended_window_mode
+            extended_window_mode=extended_window_mode,
+            exclude_non_var_pos_threshold=exclude_non_var_pos_threshold
         )
         logging.info('finished b2w')
 
