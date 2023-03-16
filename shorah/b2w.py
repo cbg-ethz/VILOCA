@@ -250,7 +250,10 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 arr_line = f'>{read.query_name} {first_aligned_pos+1}\n{cut_out_read}'
 
             arr.append(arr_line)
-            arr_read_qualities_summary.append(np.asarray(cut_out_qualities))
+            if cut_out_qualities is None:
+                arr_read_qualities_summary = None
+            else:
+                arr_read_qualities_summary.append(np.asarray(cut_out_qualities))
 
         if read.reference_start >= counter and len(full_read) >= minimum_overlap:
             arr_read_summary.append(
@@ -356,8 +359,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             and len(arr) > 0) or len(tiling) == 1: # suppress output if window empty
 
             _write_to_file(arr, file_name + '.reads.fas')
-
-            if arr_read_qualities_summary[0] != np.array(None):
+            if arr_read_qualities_summary is not None:
                 with open(file_name + '.qualities.npy', 'wb') as f:
                     np.save(f, np.asarray(arr_read_qualities_summary, dtype=np.int64), allow_pickle=True)
 
@@ -394,7 +396,6 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + ref
                 ], file_name + '.ref.fas')
-
                 assert control_window_length == len(ref), (
                     f"""
                         Reference does not have same length as the window.
