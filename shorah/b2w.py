@@ -396,6 +396,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + ref
                 ], file_name + '.ref.fas')
+                
                 assert control_window_length == len(ref), (
                     f"""
                         Reference does not have same length as the window.
