@@ -201,7 +201,7 @@ def main():
                                 help="Runs b2w in extended window mode where fake inserations are placed into reference and read.")
 
     parser_shotgun.add_argument('--exclude_non_var_pos_threshold', metavar='FLOAT', type=float, dest="exclude_non_var_pos_threshold",
-                                required=False, help="Runs exclude non-variable positions mode. Set percentage threshold for exclusion.")
+                                default=-1, help="Runs exclude non-variable positions mode. Set percentage threshold for exclusion.")
 
     parser_shotgun.set_defaults(func=shotgun_run)
 
