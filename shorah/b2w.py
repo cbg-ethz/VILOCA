@@ -261,6 +261,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 (read.query_name, read.reference_start + 1, read.reference_end, full_read)
             )
 
+    pos_filter = None
     if exclude_non_var_pos_threshold > 0:
         pos_filter = (1 - np.amax(base_pair_distr_in_window, axis=1) / np.sum(base_pair_distr_in_window, axis=1)
             >= exclude_non_var_pos_threshold)
