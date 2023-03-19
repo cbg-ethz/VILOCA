@@ -5,16 +5,21 @@ ENV POETRY_VERSION=1.2.2
 ENV PYTHONDONTWRITEBYTECODE 1
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED 1
+ENV WD /usr/app/
 
 RUN apt-get update -y && \
     apt-get install -y libhts-dev libboost-random-dev
 
 RUN pip install "poetry==$POETRY_VERSION"
 
-COPY pyproject.toml poetry.lock /usr/app/
+COPY pyproject.toml poetry.lock ${WD}
 
 # https://stackoverflow.com/questions/53835198/integrating-python-poetry-with-docker
-RUN cd /usr/app && poetry install --no-interaction --no-ansi --no-root
+RUN cd ${WD} && poetry install --no-interaction --no-ansi --no-root
+
+COPY . ${WD}
+
+RUN cd ${WD} && poetry install --no-interaction --no-ansi --only-root
 
 # GitHub Actions chimes in here and sets docker's WORKDIR=${GITHUB_WORKSPACE}
 # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#workdir
