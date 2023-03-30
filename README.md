@@ -13,47 +13,14 @@ genetic variants present in a mixed sample.
 
 ---
 
-The software suite VILOCA consists of
-several programs, the most important of which are:
-
-| Tool           | What it does                                                        |
-| -------------- | ------------------------------------------------------------------- |
-| `shorah`       | wrapper for everything                                              |
-|`shorah shotgun`| shotgun sequencing analysis                                         |
-| `shorah snv`   | detects single nucleotide variants, taking strand bias into account |
-| `b2w`          | splitting shotgun sequencing .BAM into multiple overlapping windows |
-| `diri_sampler` | Gibbs sampling for error correction via Dirichlet process mixture   |
-| `fil`          | strand bias test                                                    |
-
-### Dependencies
-VILOCA requires the following pieces of software:
-
-1. **Python 3**
-
-2. **HTSlib** which is used to access bam/cram/sam and fasta files.
-
-3. **Boost C++ library**, for random number generation.
-
 ### Installation
-For installation miniconda is recommended: https://docs.conda.io/en/latest/miniconda.html
-We recommend to install ShoRAH in a clean conda environment:
-
-`conda create --name env_shorah python=3.9`
-
-`conda activate env_shorah`
-
-Next install, **HTSlib** and **Boost C++ library** using conda:
-
-`conda install -c bioconda htslib`
-
-`conda install -c conda-forge boost`
-
-Then install this git repository:
-
-`pip install git+https://github.com/LaraFuhrmann/VILOCA@master`
-
-You might need to downgrade your pip version:
-`pip install pip==21.3.1`
+For installation miniconda is recommended: https://docs.conda.io/en/latest/miniconda.html.
+We recommend to install VILOCA in a clean conda environment:
+```
+conda create --name env_viloca libshorah
+conda activate env_viloca
+pip install git+https://github.com/LaraFuhrmann/VILOCA@master
+```
 
 ### Example
 To test your installation, we recommend running the program on `tests/data_1`.
