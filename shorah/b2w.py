@@ -32,8 +32,7 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
         max_at_this_pos = 0
         for pileupread in pileupcolumn.pileups:
 
-            # TODO
-            #assert not (pileupread.indel < 0 and pileupread.is_del == 0), "Pileup read contains unsupported params"
+            #assert pileupread.indel >= 0, "Pileup read indel is negative" TODO
 
             if pileupread.indel > 0 or pileupread.is_del:
                 indel_map.add((
@@ -70,35 +69,30 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
     for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
 
         if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
-            if is_del == 1: # if del
-                # if indel_len != 0: # TODO
-                #     raise NotImplementedError("Deletions larger than 1 not expected.")
-                full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
-                if full_qualities is not None:
-                    full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
-                continue
+            if indel_len > 0 and is_del == 1:
+                logging.debug(f"[b2w] Del and ins at same position in {read_query_name} @ {ref_pos}")
 
-            elif is_del == 0 and not extended_window_mode:
-                assert indel_len > 0
+            if indel_len > 0 and not extended_window_mode:
                 for _ in range(indel_len):
                     full_read.pop(ref_pos + 1 - first_aligned_pos)
                     if full_qualities is not None:
                         full_qualities.pop(ref_pos + 1 - first_aligned_pos)
-                continue
 
-            elif (is_del == 0 and extended_window_mode):
+            if is_del == 1: # if del
+                full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
+                if full_qualities is not None:
+                    full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
 
+            if indel_len > 0 and extended_window_mode:
                 own_inserts.add((ref_pos, indel_len))
                 change_in_reference_space_ins += indel_len
                 all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
 
-            else:
-                pass
 
 
         if (extended_window_mode and
             (name != read_query_name or start != first_aligned_pos or cigar_hash != full_read_cigar_hash) and
-            first_aligned_pos <= ref_pos <= last_aligned_pos and is_del == 0):
+            first_aligned_pos <= ref_pos <= last_aligned_pos and indel_len > 0):
 
             all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
 
@@ -233,6 +227,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 cut_out_read = (-start_cut_out + num_inserts_left_of_read) * "N" + cut_out_read
                 if full_qualities is not None:
                     cut_out_qualities = (-start_cut_out + num_inserts_left_of_read) * [2] + cut_out_qualities
+            if len(cut_out_read) != window_length:
+                breakpoint()
 
             assert len(cut_out_read) == window_length, (
                 "read unequal window size",
