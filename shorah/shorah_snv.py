@@ -45,7 +45,6 @@
 """
 
 import glob
-import gzip
 import os
 import sys
 import warnings
@@ -203,16 +202,16 @@ def parseWindow(line, extended_window_mode, threshold=0.9):
     _, chrom, beg, end, _ = line.rstrip().split("\t")
 
     file_stem = "w-%s-%s-%s" % (chrom, beg, end)
-    haplo_filename = os.path.join("support", file_stem + ".reads-support.fas.gz")
+    haplo_filename = os.path.join("support", file_stem + ".reads-support.fas")
 
     ref_name = "ref" if not extended_window_mode else "extended-ref"
-    ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas.gz")
+    ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas")
 
     start = int(beg)
     max_snv = -1
 
     try:
-        with gzip.open(haplo_filename, "rt") as window, gzip.open(ref_filename, "rt") as ref:
+        with open(haplo_filename) as window, open(ref_filename) as ref:
             d = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(ref, "fasta")])
             refSlice = d[chrom]
 
