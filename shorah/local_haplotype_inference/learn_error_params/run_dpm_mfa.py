@@ -29,7 +29,7 @@ def gzip_file(f_name):
     return f_out.name
 
 
-def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-"):
+def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=True):
 
     window_id = freads_in.split("/")[-1][:-4]  # freads_in is absolute path
 
@@ -39,7 +39,7 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-"):
     # Read in reads
     reference_seq, ref_id = preparation.load_reference_seq(fref_in)
     reference_binary = preparation.reference2binary(reference_seq, alphabet)
-    reads_list = preparation.load_fasta2reads_list(freads_in, alphabet)
+    reads_list = preparation.load_fasta2reads_list(freads_in, alphabet, unique_modus)
     reads_seq_binary, reads_weights = preparation.reads_list_to_array(reads_list)
     result_list = [cavi.run_cavi(
         K,
@@ -80,6 +80,9 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-"):
 
     state_curr_dict = result_list[max_idx][1]
     logging.info("Maximal ELBO " + str(max_elbo) + "in run " + str(max_idx))
+
+    print(state_curr_dict["mean_log_gamma"]) # TODO (log gamma, log (1-gamma))
+    print(state_curr_dict["mean_log_theta"]) # TODO (log gamma, log (1-gamma))
 
     # write output like in original shorah
     analyze_results.haplotypes_to_fasta(state_curr_dict, output_name + "support.fas")

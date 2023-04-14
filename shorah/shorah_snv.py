@@ -370,7 +370,7 @@ def writeRaw(all_snv, min_windows_coverage):
 
 
 def sb_filter(
-    in_bam,
+    in_bam, # TODO
     file_to_append,
     out_file_prefix,
     sigma,

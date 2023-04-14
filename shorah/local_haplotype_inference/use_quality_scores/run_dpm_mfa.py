@@ -101,6 +101,11 @@ def main(
     )
 
     state_curr_dict = result_list[best_run_idx][0]
+
+    print("HERE") # TODO
+    print(state_curr_dict["mean_log_gamma"]) # TODO (log gamma, log (1-gamma))
+    # no theta
+
     summary = analyze_results.summarize_results(
         state_curr_dict,
         alphabet,
