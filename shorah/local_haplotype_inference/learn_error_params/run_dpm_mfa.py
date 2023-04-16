@@ -81,9 +81,6 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
     state_curr_dict = result_list[max_idx][1]
     logging.info("Maximal ELBO " + str(max_elbo) + "in run " + str(max_idx))
 
-    print(state_curr_dict["mean_log_gamma"]) # TODO (log gamma, log (1-gamma))
-    print(state_curr_dict["mean_log_theta"]) # TODO (log gamma, log (1-gamma))
-
     # write output like in original shorah
     analyze_results.haplotypes_to_fasta(state_curr_dict, output_name + "support.fas")
     analyze_results.correct_reads(state_curr_dict, output_name + "cor.fas")
