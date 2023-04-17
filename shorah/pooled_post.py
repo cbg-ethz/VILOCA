@@ -14,6 +14,9 @@ import pickle
 
 alphabet = "ACGT-" # TODO hardcoded
 
+# TODO if average reads or posterior == 0 do not list haplo in support file
+# TODO assert ave_reads == N_s - haplo that are 0
+
 def _create_unique_haplo_var(support_handle):
     arr = []
     for i in SeqIO.parse(support_handle, "fasta"):
@@ -51,7 +54,7 @@ def _ingest_sampler_results_gamma_theta(results_file_handle, inference_type):
         return (math.log(gamma), math.log(1-gamma)), (math.log(theta), math.log(1-theta))
     else:
         with open("serialized.pkl", "rb") as f:
-            data = pickle.load(f)[0][len(data[0])-1] # TODO check if last element
+            data = pickle.load(f)[0][1]
             if inference_type == "learn_error_params":
                 return data["mean_log_gamma"], data["mean_log_theta"]
             if inference_type == "use_quality_scores":
@@ -163,6 +166,3 @@ def recalculate_posterior_and_ave_reads(fref_in: str, freads_in: str,
     )
 
     return posterior, np.sum(mean_z, axis=0)
-
-    # TODO if average reads or posterior == 0 do not list haplo in support file
-    # TODO assert ave_reads == N_s - haplo that are 0
