@@ -32,7 +32,7 @@ def test__ingest_sampler_results_gamma_theta():
         np.testing.assert_almost_equal(out[1][0], -0.12783337150988489)
         np.testing.assert_almost_equal(out[1][1], -2.120263536200091)
 
-def test_write_support_file_per_pool():
+def test_write_support_file_per_sample():
     data_dict = {"file1": ">hap_0|posterior=1 ave_reads=18\nTGGCAACGACCCCTCGTCACAATAAAAGTAGGGGGGCAACTAAAGGAAGC\n>hap_1|posterior=1 ave_reads=20.9658\nTGGCAGCGACCCCTCGTCACAATAAAGATAGGGGGGCAATTAAAGGAAGC",
                 "file2": ""}
 
@@ -41,7 +41,7 @@ def test_write_support_file_per_pool():
 
     with patch(f"{__name__}.open", side_effect=open_side_effect):
         with open("file1") as sup, open("file2") as new_sup:
-            pooled_post.write_support_file_per_pool(sup, new_sup, [0.6, 0.8], [66, 88])
+            pooled_post.write_support_file_per_sample(sup, new_sup, [0.6, 0.8], [66, 88])
             # TODO
 
 # pooled_post.post_process_pooled_samples_mode("raw_reads/w-HXB2-2938-3138.ref.fas", "raw_reads/w-HXB2-2938-3138.reads.fas",

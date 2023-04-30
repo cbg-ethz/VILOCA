@@ -24,7 +24,18 @@ def _annotate_alignment_file(
     outfile.close()
     infile.close()
 
-def pre_process_pooled(alignment_filenames: list[str], reference_filename: str):
+def pre_process_pooled(
+        alignment_filenames: list[str], reference_filename: str) -> str:
+    """Takes alignment files and merges them while annotating each read with
+    its original sample
+
+    Args:
+        alignment_filenames:
+        reference_filename:
+
+    Returns:
+        str: Path to merged alignment file.
+    """
     arr = []
     for idx, i in enumerate(alignment_filenames):
         fp = tempfile.NamedTemporaryFile()

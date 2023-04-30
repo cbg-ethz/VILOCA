@@ -63,7 +63,7 @@ def _ingest_sampler_results_gamma_theta(results_file_handle, inference_type):
 
 
 
-def write_support_file_per_pool(support_handle: TextIO,
+def write_support_file_per_sample(support_handle: TextIO,
                                 new_support_handle: TextIO,
                                 posterior: np.ndarray,
                                 average_reads:  np.ndarray):

@@ -45,16 +45,6 @@ import gzip
 
 import libshorah
 
-# dn_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# if __name__ == '__main__':
-#     if __package__ is None:
-#         os.sys.path.insert(1, dn_dir)
-#         mod = __import__('shorah')
-#         sys.modules["shorah"] = mod
-#         import shorah_snv
-#         import b2w
-#         import tiling
-# else:
 from . import shorah_snv
 from . import b2w
 from . import tiling
@@ -750,7 +740,12 @@ def main(args):
     logging.info('running snv.py')
     args.increment = win_length // win_shifts # TODO remove dependency on these vars
 
-    shorah_snv.main(args)
+    b_list = args.b.copy()
+    for i in b_list:
+        # TODO pooled
+        # TODO read naming
+        args.b = i
+        shorah_snv.main(args)
 
     # tidy snvs
     try:
