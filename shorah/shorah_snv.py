@@ -431,6 +431,9 @@ def main(args):
     extended_window_mode = args.extended_window_mode
     min_windows_coverage = args.min_windows_coverage
 
+    if len(bam_file) == 1:
+        bam_file = bam_file[0]
+
     logging.info(str(inspect.getfullargspec(main)))
     ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
 

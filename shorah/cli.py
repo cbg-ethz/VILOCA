@@ -109,7 +109,7 @@ def main():
     required = parent_parser.add_argument_group('required arguments')
 
     required.add_argument("-b", "--bam", metavar='BAM', required=True,
-                          type=str, dest="b", help="sorted bam format alignment file")
+                          type=str, dest="b", nargs='+', help="sorted bam format alignment file")
 
     required.add_argument("-f", "--fasta", metavar='REF', required=True,
                           type=str, dest="f", help="reference genome in fasta format")

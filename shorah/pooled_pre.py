@@ -1,6 +1,7 @@
 import pysam
+import tempfile
 
-def annotate_alignment_file(
+def _annotate_alignment_file(
         alignment_filename, reference_filename, out_filename, sample_name):
 
     infile = pysam.AlignmentFile(
@@ -23,4 +24,20 @@ def annotate_alignment_file(
     outfile.close()
     infile.close()
 
-    pysam.index(out_filename)
+def pre_process_pooled(alignment_filenames: list[str], reference_filename: str):
+    arr = []
+    for idx, i in enumerate(alignment_filenames):
+        fp = tempfile.NamedTemporaryFile()
+        sample_name = f"sample{idx}"
+        _annotate_alignment_file(i, reference_filename, fp, sample_name)
+        arr.append(fp)
+
+    out_file = "merged.bam"
+
+    pysam.merge("-f", "-o", out_file, *[i.name for i in arr])
+    pysam.index(out_file)
+
+    for i in arr:
+        i.close()
+
+    return out_file

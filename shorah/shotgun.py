@@ -45,19 +45,20 @@ import gzip
 
 import libshorah
 
-dn_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if __name__ == '__main__':
-    if __package__ is None:
-        os.sys.path.insert(1, dn_dir)
-        mod = __import__('shorah')
-        sys.modules["shorah"] = mod
-        import shorah_snv
-        import b2w
-        import tiling
-else:
-    from . import shorah_snv
-    from . import b2w
-    from . import tiling
+# dn_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# if __name__ == '__main__':
+#     if __package__ is None:
+#         os.sys.path.insert(1, dn_dir)
+#         mod = __import__('shorah')
+#         sys.modules["shorah"] = mod
+#         import shorah_snv
+#         import b2w
+#         import tiling
+# else:
+from . import shorah_snv
+from . import b2w
+from . import tiling
+from . import pooled_pre
 
 # import local haplotype inference methods
 from .local_haplotype_inference.use_quality_scores import run_dpm_mfa as use_quality_scores
@@ -452,6 +453,11 @@ def main(args):
     extended_window_mode = args.extended_window_mode
 
     logging.info(' '.join(sys.argv))
+
+    if len(in_bam) == 1:
+        in_bam = in_bam[0]
+    else:
+        in_bam = pooled_pre.pre_process_pooled(in_bam, in_fasta)
 
     # check options
     if win_length % win_shifts != 0:
