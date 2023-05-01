@@ -25,18 +25,17 @@ def _create_unique_haplo_var(support_handle):
     return arr
 
 def _ingest_sampler_output_to_calc_mean_cluster(haplo: list[str], corrected_handle: TextIO):
-    N_s = 0 # TODO correctness?
-    for _ in SeqIO.parse(corrected_handle, "fasta"):
-        N_s += 1
 
-    mean_cluster = np.zeros((N_s, len(haplo)), dtype=int) # N_s x k
+    mean_cluster = np.empty((0, len(haplo)), dtype=int) # N_s x k
 
-    for c_idx, c in enumerate(SeqIO.parse(corrected_handle, "fasta")):
+    for c in SeqIO.parse(corrected_handle, "fasta"):
         c_seq = str(c.seq).upper()
+        row = np.zeros(len(haplo), dtype=int)
         for s_idx, s_seq in enumerate(haplo):
             if c_seq == s_seq:
                 # probability that read i belongs to cluster j, only 0 and 1
-                mean_cluster[c_idx][s_idx] = 1
+                row[s_idx] = 1
+                mean_cluster = np.vstack((mean_cluster, row))
                 continue
 
     return mean_cluster

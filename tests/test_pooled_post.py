@@ -14,7 +14,7 @@ def test__ingest_sampler_output_to_calc_mean_cluster():
 
     with patch(f"{__name__}.open", side_effect=open_side_effect):
         with open("file1") as sup, open("file2") as cor:
-            out = pooled_post._ingest_sampler_output_to_calc_mean_cluster(pooled_post._create_unique_haplo_var(sup), cor, 3)
+            out = pooled_post._ingest_sampler_output_to_calc_mean_cluster(pooled_post._create_unique_haplo_var(sup), cor)
 
 
     np.testing.assert_array_equal(out, np.array([[1, 0],
