@@ -10,7 +10,7 @@ from typing import Optional, TextIO
 import re
 import math
 import pickle
-
+import tempfile
 
 alphabet = "ACGT-" # TODO hardcoded
 
@@ -24,7 +24,10 @@ def _create_unique_haplo_var(support_handle):
 
     return arr
 
-def _ingest_sampler_output_to_calc_mean_cluster(haplo: list[str], corrected_handle: TextIO, N_s):
+def _ingest_sampler_output_to_calc_mean_cluster(haplo: list[str], corrected_handle: TextIO):
+    N_s = 0 # TODO correctness?
+    for _ in SeqIO.parse(corrected_handle, "fasta"):
+        N_s += 1
 
     mean_cluster = np.zeros((N_s, len(haplo)), dtype=int) # N_s x k
 
@@ -127,7 +130,7 @@ def recalculate_posterior_and_ave_reads(fref_in: str, freads_in: str,
 
     reference_binary = uqs_preparation.load_reference_seq(fref_in, alphabet)[0]
     unique_haplo_var = _create_unique_haplo_var(support_handle)
-    mean_z = _ingest_sampler_output_to_calc_mean_cluster(unique_haplo_var, corrected_handle, len(reads_list))
+    mean_z = _ingest_sampler_output_to_calc_mean_cluster(unique_haplo_var, corrected_handle)
 
     if inference_type == "use_quality_scores":
         mean_log_gamma, _ = _ingest_sampler_results_gamma_theta(
@@ -166,3 +169,15 @@ def recalculate_posterior_and_ave_reads(fref_in: str, freads_in: str,
     )
 
     return posterior, np.sum(mean_z, axis=0)
+
+def filter_fasta(file_to_filter, sample_name):
+    tf = tempfile.NamedTemporaryFile(mode="w", suffix=".fasta")
+    lock = False
+    with open(file_to_filter) as f:
+        for line in f:
+            if line.startswith(f">__#{sample_name}#__") or lock == True:
+                tf.write(line)
+                lock = not lock
+
+    tf.seek(0)
+    return tf

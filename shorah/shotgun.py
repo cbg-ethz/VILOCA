@@ -41,7 +41,7 @@ import random
 import subprocess
 from Bio import SeqIO
 import gzip
-
+from pathlib import Path
 
 import libshorah
 
@@ -49,6 +49,7 @@ from . import shorah_snv
 from . import b2w
 from . import tiling
 from . import pooled_pre
+from . import pooled_post
 
 # import local haplotype inference methods
 from .local_haplotype_inference.use_quality_scores import run_dpm_mfa as use_quality_scores
@@ -604,67 +605,67 @@ def main(args):
 
         for dbg_file in glob.glob('./w*dbg'):
             if os.stat(dbg_file).st_size > 0:
-                gzf = gzip_file(dbg_file)
+                #gzf = gzip_file(dbg_file)
                 try:
-                    os.remove('debug/%s' % gzf)
+                    os.remove('debug/%s' % dbg_file)
                 except OSError:
                     pass
-                shutil.move(gzf, 'debug/')
+                shutil.move(dbg_file, 'debug/')
             else:
                 os.remove(dbg_file)
 
         for smp_file in glob.glob('./w*smp'):
             if os.stat(smp_file).st_size > 0:
-                gzf = gzip_file(smp_file)
+                #gzf = gzip_file(smp_file)
                 try:
-                    os.remove('sampling/%s' % gzf)
+                    os.remove('sampling/%s' % smp_file)
                 except OSError:
                     pass
-                shutil.move(gzf, 'sampling/')
+                shutil.move(smp_file, 'sampling/')
             else:
                 os.remove(smp_file)
 
         for cor_file in glob.glob('./w*reads-cor.fas'):
             if os.stat(cor_file).st_size > 0:
-                gzf = gzip_file(cor_file)
+                #gzf = gzip_file(cor_file)
                 try:
-                    os.remove('corrected/%s' % gzf)
+                    os.remove('corrected/%s' % cor_file)
                 except OSError:
                     pass
-                shutil.move(gzf, 'corrected/')
+                shutil.move(cor_file, 'corrected/')
             else:
                 os.remove(cor_file)
 
         for sup_file in glob.glob('./w*reads-support.fas'):
             if os.stat(sup_file).st_size > 0:
-                gzf = gzip_file(sup_file)
+                #gzf = gzip_file(sup_file)
                 try:
-                    os.remove('support/%s' % gzf)
+                    os.remove('support/%s' % sup_file)
                 except OSError:
                     pass
-                shutil.move(gzf, 'support/')
+                shutil.move(sup_file, 'support/')
             else:
                 os.remove(sup_file)
 
         for freq_file in glob.glob('./w*reads-freq.csv'):
             if os.stat(freq_file).st_size > 0:
-                gzf = gzip_file(freq_file)
+                #gzf = gzip_file(freq_file)
                 try:
-                    os.remove('freq/%s' % gzf)
+                    os.remove('freq/%s' % freq_file)
                 except OSError:
                     pass
-                shutil.move(gzf, 'freq/')
+                shutil.move(freq_file, 'freq/')
             else:
                 os.remove(freq_file)
 
         for raw_file in glob.glob('./w*reads.fas') + glob.glob('./w*ref.fas') + glob.glob('./w*qualities.npy'):
             if os.stat(raw_file).st_size > 0:
-                gzf = gzip_file(raw_file)
+                #gzf = gzip_file(raw_file)
                 try:
-                    os.remove('raw_reads/%s' % gzf)
+                    os.remove('raw_reads/%s' % raw_file)
                 except OSError:
                     pass
-                shutil.move(gzf, 'raw_reads/')
+                shutil.move(raw_file, 'raw_reads/')
             else:
                 os.remove(raw_file)
 
@@ -677,12 +678,12 @@ def main(args):
 
         for inf_file in inference_files:
             if os.stat(inf_file).st_size > 0:
-                gzf = gzip_file(inf_file)
+                #gzf = gzip_file(inf_file)
                 try:
-                    os.remove("inference/%s" % gzf)
+                    os.remove("inference/%s" % inf_file)
                 except OSError:
                     pass
-                shutil.move(gzf, "inference/")
+                shutil.move(inf_file, "inference/")
             else:
                 os.remove(inf_file)
 
@@ -741,20 +742,47 @@ def main(args):
     args.increment = win_length // win_shifts # TODO remove dependency on these vars
 
     b_list = args.b.copy()
-    for i in b_list:
-        # TODO pooled
-        # TODO read naming
-        args.b = i
+    if len(b_list) > 1:
+        for idx, i in enumerate(b_list):
+            Path(f"sample{idx}/support").mkdir(parents=True, exist_ok=True)
+            with open("coverage.txt") as cov:
+                for line in cov:
+                    window_file, _, _, _, _ = line.rstrip().split("\t")
+                    stem = window_file.split(".")[0]
+                    filtered_reads = pooled_post.filter_fasta(f"raw_reads/{stem}.reads.fas", f"sample{idx}")
+
+                    posterior_and_avg = pooled_post.recalculate_posterior_and_ave_reads(
+                        f"raw_reads/{stem}.ref.fas",
+                        filtered_reads.name,
+                        open(f"debug/{stem}.dbg") if inference_type == "shorah" else None, # TODO
+                        open(f"support/{stem}.reads-support.fas"),
+                        open(f"corrected/{stem}.reads-cor.fas"),
+                        inference_type
+                    ) # TODO inference_type
+                    filtered_reads.close()
+
+                    pooled_post.write_support_file_per_sample(
+                        open(f"support/{stem}.reads-support.fas"),
+                        open(f"sample{idx}/support/{stem}.reads-support.fas", "w+"), # TODO
+                        *posterior_and_avg
+                    )
+
+            args.b = i
+            args.working_dir = f"sample{idx}"
+            shorah_snv.main(args)
+    else:
+        args.b = b_list[0]
+        args.working_dir = ""
         shorah_snv.main(args)
 
-    # tidy snvs
-    try:
-        os.mkdir('snv')
-    except OSError:
-        os.rename('snv', 'snv_before_%d' % int(time.time()))
-        os.mkdir('snv')
+        # tidy snvs # TODO
+        try:
+            os.mkdir('snv')
+        except OSError:
+            os.rename('snv', 'snv_before_%d' % int(time.time()))
+            os.mkdir('snv')
 
-    for snv_file in glob.glob('./raw_snv*') + glob.glob('./SNV*')+ glob.glob('./cooccurring_mutations.csv'):
-        shutil.move(snv_file, 'snv/')
+        for snv_file in glob.glob('./raw_snv*') + glob.glob('./SNV*')+ glob.glob('./cooccurring_mutations.csv'):
+            shutil.move(snv_file, 'snv/')
 
     logging.info('shotgun run ends')
