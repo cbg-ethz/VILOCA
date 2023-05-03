@@ -750,16 +750,19 @@ def main(args):
                     window_file, _, _, _, _ = line.rstrip().split("\t")
                     stem = window_file.split(".")[0]
                     filtered_reads = pooled_post.filter_fasta(f"raw_reads/{stem}.reads.fas", f"sample{idx}")
+                    filtered_cor_reads = pooled_post.filter_fasta(f"corrected/{stem}.reads-cor.fas", f"sample{idx}")
 
                     posterior_and_avg = pooled_post.recalculate_posterior_and_ave_reads(
                         f"raw_reads/{stem}.ref.fas",
                         filtered_reads.name,
-                        open(f"debug/{stem}.dbg") if inference_type == "shorah" else None, # TODO
+                        open(f"debug/{stem}.dbg") if inference_type == "shorah" else open(f"inference/{stem}.reads-all_results.pkl", "rb"),
                         open(f"support/{stem}.reads-support.fas"),
-                        open(f"corrected/{stem}.reads-cor.fas"),
-                        inference_type
-                    ) # TODO inference_type
+                        filtered_cor_reads.name,
+                        inference_type,
+                        None if inference_type != "use_quality_scores" else f"raw_reads/{stem}.qualities.npy" # TODO untested
+                    )
                     filtered_reads.close()
+                    filtered_cor_reads.close()
 
                     pooled_post.write_support_file_per_sample(
                         open(f"support/{stem}.reads-support.fas"),

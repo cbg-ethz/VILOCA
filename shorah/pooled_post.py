@@ -49,13 +49,13 @@ def _parse_gamma_or_theta(datafile, var):
     raise ValueError("non theta and gamma found")
 
 def _ingest_sampler_results_gamma_theta(results_file_handle, inference_type):
-    datafile = results_file_handle.readlines()
     if inference_type == "shorah":
+        datafile = results_file_handle.readlines()
         gamma = _parse_gamma_or_theta(datafile, "gamma")
         theta = _parse_gamma_or_theta(datafile, "theta")
         return (math.log(gamma), math.log(1-gamma)), (math.log(theta), math.log(1-theta))
     else:
-        with open("serialized.pkl", "rb") as f:
+        with results_file_handle as f:
             data = pickle.load(f)[0][1]
             if inference_type == "learn_error_params":
                 return data["mean_log_gamma"], data["mean_log_theta"]
@@ -82,7 +82,8 @@ def write_support_file_per_sample(support_handle: TextIO,
         s.id = s.name = s.id.split("=")[0] + "=" + str(posterior[idx])
         s.description = (s.description.split("=")[0] + "=" + str(posterior[idx])
             + " ave_reads=" + str(average_reads[idx]))
-        records.append(s)
+        if average_reads[idx] != 0:
+            records.append(s)
 
     SeqIO.write(records, new_support_handle, "fasta")
 
