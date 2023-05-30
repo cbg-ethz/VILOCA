@@ -69,7 +69,7 @@ from .local_haplotype_inference.learn_error_params import run_dpm_mfa as learn_e
 #################################################
 # parameters not controlled by command line options
 fasta_length = 80   # controls line length in fasta files
-win_min_ext = 0.85  # if read covers at least win_min_ext fraction of
+#win_min_ext = 0.85  # if read covers at least win_min_ext fraction of
 # the window, fill it with Ns
 hist_fraction = 0.20  # fraction that goes into the history
 min_quality = 0.9  # quality under which discard the correction
@@ -450,6 +450,7 @@ def main(args):
     unique_modus = args.unique_modus
     inference_convergence_threshold = args.conv_thres
     extended_window_mode = args.extended_window_mode
+    win_min_ext = args.win_min_ext
 
     logging.info(' '.join(sys.argv))
 

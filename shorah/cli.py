@@ -164,6 +164,9 @@ def main():
     parser_shotgun.add_argument("-w", "--windowsize", metavar='INT',
                                 required=False, type=int, dest="w", default=201, help="window size")
 
+    parser_shotgun.add_argument("--win_min_ext", metavar='FLOAT',
+                                required=False, type=float, dest="win_min_ext", default=0.85, help="win_min_ext: Minimum percentage of bases to overlap between reference and read to be considered in a window. The rest (i.e. non-overlapping part) will be filled with Ns.")
+
     parser_shotgun.add_argument("-s", "--winshifts", metavar='INT', required=False,
                                 type=int, default=3, dest="win_shifts", help="number of window shifts")
 
