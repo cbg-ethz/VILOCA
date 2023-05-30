@@ -180,6 +180,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                     raise ValueError("Soft clipping only possible on the edges of a read.")
             elif ct[0] == 5: # 5 = BAM_CHARD_CLIP
                 #logging.debug(f"[b2w] Hard clipping detected in {read.query_name}")
+                pass
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
