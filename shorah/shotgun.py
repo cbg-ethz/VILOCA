@@ -42,6 +42,7 @@ import subprocess
 from Bio import SeqIO
 import gzip
 from pathlib import Path
+import tempfile
 
 import libshorah
 
@@ -745,24 +746,29 @@ def main(args):
     if len(b_list) > 1:
         for idx, i in enumerate(b_list):
             Path(f"sample{idx}/support").mkdir(parents=True, exist_ok=True)
+            Path(f"sample{idx}/corrected").mkdir(parents=True, exist_ok=True)
             with open("coverage.txt") as cov:
                 for line in cov:
                     window_file, _, _, _, _ = line.rstrip().split("\t")
                     stem = window_file.split(".")[0]
-                    filtered_reads = pooled_post.filter_fasta(f"raw_reads/{stem}.reads.fas", f"sample{idx}")
-                    filtered_cor_reads = pooled_post.filter_fasta(f"corrected/{stem}.reads-cor.fas", f"sample{idx}")
+                    filtered_reads = tempfile.NamedTemporaryFile(mode="w", suffix=".fasta")
+                    pooled_post.filter_fasta(filtered_reads, f"raw_reads/{stem}.reads.fas", f"sample{idx}")
+                    filtered_reads.seek(0)
+                    filtered_cor_reads_path = f"sample{idx}/corrected/{stem}.reads-cor.fas"
+                    filtered_cor_reads = open(filtered_cor_reads_path, "w+")
+                    pooled_post.filter_fasta(filtered_cor_reads, f"corrected/{stem}.reads-cor.fas", f"sample{idx}")
+                    filtered_cor_reads.close()
 
                     posterior_and_avg = pooled_post.recalculate_posterior_and_ave_reads(
                         f"raw_reads/{stem}.ref.fas",
                         filtered_reads.name,
                         open(f"debug/{stem}.dbg") if inference_type == "shorah" else open(f"inference/{stem}.reads-all_results.pkl", "rb"),
                         open(f"support/{stem}.reads-support.fas"),
-                        filtered_cor_reads.name,
+                        filtered_cor_reads_path,
                         inference_type,
                         None if inference_type != "use_quality_scores" else f"raw_reads/{stem}.qualities.npy" # TODO untested
                     )
                     filtered_reads.close()
-                    filtered_cor_reads.close()
 
                     pooled_post.write_support_file_per_sample(
                         open(f"support/{stem}.reads-support.fas"),

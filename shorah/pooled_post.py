@@ -10,7 +10,6 @@ from typing import Optional, TextIO
 import re
 import math
 import pickle
-import tempfile
 
 alphabet = "ACGT-" # TODO hardcoded
 
@@ -170,14 +169,10 @@ def recalculate_posterior_and_ave_reads(fref_in: str, freads_in: str,
 
     return posterior, np.sum(mean_z, axis=0)
 
-def filter_fasta(file_to_filter, sample_name):
-    tf = tempfile.NamedTemporaryFile(mode="w", suffix=".fasta")
+def filter_fasta(fw, file_to_filter, sample_name):
     lock = False
     with open(file_to_filter) as f:
         for line in f:
             if line.startswith(f">__#{sample_name}#__") or lock == True:
-                tf.write(line)
+                fw.write(line)
                 lock = not lock
-
-    tf.seek(0)
-    return tf
