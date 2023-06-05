@@ -17,7 +17,7 @@ def update(reads_seq_binary, reads_weights, reference_binary, reads_log_error_pr
     digamma_alpha_sum = state_curr['digamma_alpha_sum']
     mean_log_gamma = state_curr['mean_log_gamma']
     digamma_a_b_sum=state_curr['digamma_a_b_sum']
-    mean_h = update_mean_haplo(reads_weights,reference_binary, reads_log_error_proba, mean_z,mean_log_gamma)
+    mean_h = update_mean_haplo(reads_weights,reference_binary, reads_log_error_proba, mean_z, mean_log_gamma)
     mean_z = update_mean_cluster(mean_log_pi,mean_h,reads_log_error_proba)
     alpha_updated = update_alpha(alpha0, mean_z,reads_weights)
     mean_log_pi = get_mean_log_pi(alpha_updated, digamma_alpha_sum)
@@ -70,7 +70,13 @@ def update_mean_cluster(mean_log_pi,mean_haplo,reads_log_error_proba):
 
     return mean_z
 
-def update_mean_haplo(reads_weights,reference_table, reads_log_error_proba, mean_cluster,mean_log_gamma):
+def update_mean_haplo(
+    reads_weights,
+    reference_table,
+    reads_log_error_proba,
+    mean_cluster,
+    mean_log_gamma
+):
 
     B=reference_table.shape[1] # size of alphabet
     ref_part = reference_table*mean_log_gamma[0]+(1-reference_table)*(mean_log_gamma[1]-np.log(B-1))
