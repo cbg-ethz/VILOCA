@@ -249,7 +249,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                     base_pair_distr_in_window[idx][alphabet.index(letter)] += 1
 
             c = 0 if exact_conformance_fix_0_1_basing_in_reads == False else 1
-            arr.append([read.query_name, first_aligned_pos + c, np.asarray(cut_out_read)])
+            arr.append([read.query_name, first_aligned_pos + c, np.array(list(cut_out_read))])
 
             if cut_out_qualities is None:
                 arr_read_qualities_summary = None
@@ -275,6 +275,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
     counter = window_start + window_length
 
     # TODO move out of this function
+    print(arr)
     convert_to_printed_fmt = lambda x: [f'>{k[0]} {k[1]}\n{"".join(k[2])}' for k in x]
 
     return convert_to_printed_fmt(arr), arr_read_qualities_summary, arr_read_summary, counter, window_length, pos_filter
