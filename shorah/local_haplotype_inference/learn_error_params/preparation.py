@@ -48,14 +48,15 @@ def reads_list_to_array(reads_list):
     return reads_binary_array, reads_weights_array
 
 
-def load_fasta2reads_list(reads_fasta_file, alphabet):
+def load_fasta2reads_list(reads_fasta_file, alphabet, unique_modus):
     # go through each sequence in fasta file
     reads_list = []
     for idx, seq in enumerate(SeqIO.parse(reads_fasta_file, "fasta")):
         reads_list.append(Read(seq.seq, seq.id))
         reads_list[-1].seq2binary(alphabet)
     # unique reads_list
-    reads_list = unique_reads_list(reads_list)
+    if unique_modus:
+        reads_list = unique_reads_list(reads_list)
     return reads_list
 
 def load_bam2reads_list(bam_file, alphabet):

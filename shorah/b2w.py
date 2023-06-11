@@ -32,8 +32,7 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
         max_at_this_pos = 0
         for pileupread in pileupcolumn.pileups:
 
-            # TODO
-            #assert not (pileupread.indel < 0 and pileupread.is_del == 0), "Pileup read contains unsupported params"
+            #assert pileupread.indel >= 0, "Pileup read indel is negative" TODO
 
             if pileupread.indel > 0 or pileupread.is_del:
                 indel_map.add((
@@ -70,35 +69,30 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
     for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
 
         if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
-            if is_del == 1: # if del
-                # if indel_len != 0: # TODO
-                #     raise NotImplementedError("Deletions larger than 1 not expected.")
-                full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
-                if full_qualities is not None:
-                    full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
-                continue
+            if indel_len > 0 and is_del == 1:
+                logging.debug(f"[b2w] Del and ins at same position in {read_query_name} @ {ref_pos}")
 
-            elif is_del == 0 and not extended_window_mode:
-                assert indel_len > 0
+            if indel_len > 0 and not extended_window_mode:
                 for _ in range(indel_len):
                     full_read.pop(ref_pos + 1 - first_aligned_pos)
                     if full_qualities is not None:
                         full_qualities.pop(ref_pos + 1 - first_aligned_pos)
-                continue
 
-            elif (is_del == 0 and extended_window_mode):
+            if is_del == 1: # if del
+                full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
+                if full_qualities is not None:
+                    full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
 
+            if indel_len > 0 and extended_window_mode:
                 own_inserts.add((ref_pos, indel_len))
                 change_in_reference_space_ins += indel_len
                 all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
 
-            else:
-                pass
 
 
         if (extended_window_mode and
             (name != read_query_name or start != first_aligned_pos or cigar_hash != full_read_cigar_hash) and
-            first_aligned_pos <= ref_pos <= last_aligned_pos and is_del == 0):
+            first_aligned_pos <= ref_pos <= last_aligned_pos and indel_len > 0):
 
             all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
 
@@ -189,7 +183,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 if ct_idx != 0 and ct_idx != len(read.cigartuples)-1:
                     raise ValueError("Soft clipping only possible on the edges of a read.")
             elif ct[0] == 5: # 5 = BAM_CHARD_CLIP
-                logging.debug(f"[b2w] Hard clipping detected in {read.query_name}")
+                #logging.debug(f"[b2w] Hard clipping detected in {read.query_name}")
+                pass
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
@@ -237,6 +232,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 cut_out_read = (-start_cut_out + num_inserts_left_of_read) * "N" + cut_out_read
                 if full_qualities is not None:
                     cut_out_qualities = (-start_cut_out + num_inserts_left_of_read) * [2] + cut_out_qualities
+            if len(cut_out_read) != window_length:
+                breakpoint()
 
             assert len(cut_out_read) == window_length, (
                 "read unequal window size",
@@ -252,9 +249,12 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                     base_pair_distr_in_window[idx][alphabet.index(letter)] += 1
 
             c = 0 if exact_conformance_fix_0_1_basing_in_reads == False else 1
-            arr.append([read.query_name, first_aligned_pos + c, np.array(list(cut_out_read))])
+            arr.append([read.query_name, first_aligned_pos + c, np.asarray(cut_out_read)])
 
-            arr_read_qualities_summary.append(np.asarray(cut_out_qualities)) # TODO how to handle
+            if cut_out_qualities is None:
+                arr_read_qualities_summary = None
+            else:
+                arr_read_qualities_summary.append(np.asarray(cut_out_qualities))
 
         if read.reference_start >= counter and len(full_read) >= minimum_overlap:
             arr_read_summary.append(
@@ -270,7 +270,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 
         for idx, (_, _, rd) in enumerate(arr):
             arr[idx][2] = rd[pos_filter]
-
+            arr_read_qualities_summary[idx] = arr_read_qualities_summary[idx][pos_filter] # TODO works?
 
     counter = window_start + window_length
 
@@ -381,8 +381,9 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             and len(arr) > 0) or len(tiling) == 1: # suppress output if window empty
 
             _write_to_file(arr, file_name + '.reads.fas')
-            with open(file_name + '.qualities.npy', 'wb') as f:
-                np.save(f, np.asarray(arr_read_qualities_summary, dtype=np.int64), allow_pickle=True)
+            if arr_read_qualities_summary is not None:
+                with open(file_name + '.qualities.npy', 'wb') as f:
+                    np.save(f, np.asarray(arr_read_qualities_summary, dtype=np.int64), allow_pickle=True)
 
             ref = reffile.fetch(reference=reference_name, start=window_start-1, end=window_end)
 

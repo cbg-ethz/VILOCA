@@ -76,7 +76,6 @@ def summarize_results(
     unique_mean_h = update_eqs.update_mean_haplo(
         reads_seq_binary,
         reads_weights,
-        reads_list,
         reference_binary,
         unique_cluster,
         mean_log_theta,
@@ -147,7 +146,6 @@ def write_info2file(
     unique_mean_h = update_eqs.update_mean_haplo(
         reads_seq_binary,
         reads_weights,
-        reads_list,
         reference_binary,
         unique_cluster,
         mean_log_theta,
