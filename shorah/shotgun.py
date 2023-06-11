@@ -51,6 +51,7 @@ from . import b2w
 from . import tiling
 from . import pooled_pre
 from . import pooled_post
+from . import envp_post
 
 # import local haplotype inference methods
 from .local_haplotype_inference.use_quality_scores import run_dpm_mfa as use_quality_scores
@@ -558,100 +559,6 @@ def main(args):
     inference_files = glob.glob("./w*best_run.txt") + glob.glob("./w*history_run*.csv") + glob.glob("./w*results*.pkl")
     move_files_into_dir("inference", inference_files)
 
-    # TODO dead code
-    # =======
-    #         tr_files = glob.glob('./w*reads-cor.fas')
-    #         tr_files.extend(glob.glob('./w*reads-freq.csv'))
-    #         tr_files.extend(glob.glob('./w*reads-support.fas'))
-    #         for trf in tr_files:
-    #             if os.stat(trf).st_size == 0:
-    #                 os.remove(trf)
-    #     else:
-
-    #         for dbg_file in glob.glob('./w*dbg'):
-    #             if os.stat(dbg_file).st_size > 0:
-    #                 #gzf = gzip_file(dbg_file)
-    #                 try:
-    #                     os.remove('debug/%s' % dbg_file)
-    #                 except OSError:
-    #                     pass
-    #                 shutil.move(dbg_file, 'debug/')
-    #             else:
-    #                 os.remove(dbg_file)
-
-    #         for smp_file in glob.glob('./w*smp'):
-    #             if os.stat(smp_file).st_size > 0:
-    #                 #gzf = gzip_file(smp_file)
-    #                 try:
-    #                     os.remove('sampling/%s' % smp_file)
-    #                 except OSError:
-    #                     pass
-    #                 shutil.move(smp_file, 'sampling/')
-    #             else:
-    #                 os.remove(smp_file)
-
-    #         for cor_file in glob.glob('./w*reads-cor.fas'):
-    #             if os.stat(cor_file).st_size > 0:
-    #                 #gzf = gzip_file(cor_file)
-    #                 try:
-    #                     os.remove('corrected/%s' % cor_file)
-    #                 except OSError:
-    #                     pass
-    #                 shutil.move(cor_file, 'corrected/')
-    #             else:
-    #                 os.remove(cor_file)
-
-    #         for sup_file in glob.glob('./w*reads-support.fas'):
-    #             if os.stat(sup_file).st_size > 0:
-    #                 #gzf = gzip_file(sup_file)
-    #                 try:
-    #                     os.remove('support/%s' % sup_file)
-    #                 except OSError:
-    #                     pass
-    #                 shutil.move(sup_file, 'support/')
-    #             else:
-    #                 os.remove(sup_file)
-
-    #         for freq_file in glob.glob('./w*reads-freq.csv'):
-    #             if os.stat(freq_file).st_size > 0:
-    #                 #gzf = gzip_file(freq_file)
-    #                 try:
-    #                     os.remove('freq/%s' % freq_file)
-    #                 except OSError:
-    #                     pass
-    #                 shutil.move(freq_file, 'freq/')
-    #             else:
-    #                 os.remove(freq_file)
-
-    #         for raw_file in glob.glob('./w*reads.fas') + glob.glob('./w*ref.fas') + glob.glob('./w*qualities.npy'):
-    #             if os.stat(raw_file).st_size > 0:
-    #                 #gzf = gzip_file(raw_file)
-    #                 try:
-    #                     os.remove('raw_reads/%s' % raw_file)
-    #                 except OSError:
-    #                     pass
-    #                 shutil.move(raw_file, 'raw_reads/')
-    #             else:
-    #                 os.remove(raw_file)
-
-    #         # collect files from inference
-    #         inference_files = (
-    #             glob.glob("./w*best_run.txt")
-    #             + glob.glob("./w*history_run*.csv")
-    #             + glob.glob("./w*results*.pkl")
-    #         )
-
-    #         for inf_file in inference_files:
-    #             if os.stat(inf_file).st_size > 0:
-    #                 #gzf = gzip_file(inf_file)
-    #                 try:
-    #                     os.remove("inference/%s" % inf_file)
-    #                 except OSError:
-    #                     pass
-    #                 shutil.move(inf_file, "inference/")
-    #             else:
-    #                 os.remove(inf_file)
-
     ############################################
     ##      Print the corrected reads         ##
     ##
@@ -706,6 +613,19 @@ def main(args):
     logging.info('running snv.py')
     args.increment = win_length // win_shifts # TODO remove dependency on these vars
 
+    # ENVP
+    with open("coverage.txt") as cov:
+        for line in cov:
+            window_file, _, _, _, _ = line.rstrip().split("\t")
+            stem = window_file.split(".")[0]
+            envp_post.post_process_for_envp(
+                open(f"raw_reads/{stem}.envp-ref-full.fas"),
+                open(f"raw_reads/{stem}.envp-ref.fas"),
+                f"support/{stem}.reads-support.fas",
+                f"support/{stem}.reads-support.fas" # overwrite
+            )
+
+    # Pooled
     b_list = args.b.copy()
     if len(b_list) > 1:
         for idx, i in enumerate(b_list):

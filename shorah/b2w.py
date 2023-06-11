@@ -262,9 +262,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             )
 
     pos_filter = None
-    if exclude_non_var_pos_threshold > 0:
-        print(np.amax(base_pair_distr_in_window, axis=1))
-        print(np.sum(base_pair_distr_in_window, axis=1))
+    if exclude_non_var_pos_threshold > 0 and len(arr) > 0:
         pos_filter = (1 - np.amax(base_pair_distr_in_window, axis=1) / np.sum(base_pair_distr_in_window, axis=1)
             >= exclude_non_var_pos_threshold)
 
@@ -275,7 +273,6 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
     counter = window_start + window_length
 
     # TODO move out of this function
-    print(arr)
     convert_to_printed_fmt = lambda x: [f'>{k[0]} {k[1]}\n{"".join(k[2])}' for k in x]
 
     return convert_to_printed_fmt(arr), arr_read_qualities_summary, arr_read_summary, counter, window_length, pos_filter
@@ -416,9 +413,14 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 k = max(0, control_window_length - len(ref))
                 ref += k * "N"
 
+                if exclude_non_var_pos_threshold > 0:
+                    full_file_name = file_name + '.envp-ref-full.fas' # TODO not compatible with EWM
+                else:
+                    full_file_name = file_name + '.ref.fas'
+
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + ref
-                ], file_name + '.ref.fas')
+                ], full_file_name)
 
                 assert control_window_length == len(ref), (
                     f"""
@@ -435,6 +437,9 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + "".join(envp_ref)
                 ], file_name + '.envp-ref.fas')
+                _write_to_file([
+                    f'>{reference_name} {window_start}\n' + "".join(np.array(list(ref))[pos_filter])
+                ], file_name + '.ref.fas') # TODO not compatible with EWM
 
             if len(arr) > minimum_reads:
                 line = (
