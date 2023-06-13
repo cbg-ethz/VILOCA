@@ -614,16 +614,17 @@ def main(args):
     args.increment = win_length // win_shifts # TODO remove dependency on these vars
 
     # ENVP
-    with open("coverage.txt") as cov:
-        for line in cov:
-            window_file, _, _, _, _ = line.rstrip().split("\t")
-            stem = window_file.split(".")[0]
-            envp_post.post_process_for_envp(
-                open(f"raw_reads/{stem}.envp-ref-full.fas"),
-                open(f"raw_reads/{stem}.envp-ref.fas"),
-                f"support/{stem}.reads-support.fas",
-                f"support/{stem}.reads-support.fas" # overwrite
-            )
+    if exclude_non_var_pos_threshold > 0:
+        with open("coverage.txt") as cov:
+            for line in cov:
+                window_file, _, _, _, _ = line.rstrip().split("\t")
+                stem = window_file.split(".")[0]
+                envp_post.post_process_for_envp(
+                    open(f"raw_reads/{stem}.envp-ref-full.fas"),
+                    open(f"raw_reads/{stem}.envp-ref.fas"),
+                    f"support/{stem}.reads-support.fas",
+                    f"support/{stem}.reads-support.fas" # overwrite
+                )
 
     # Pooled
     b_list = args.b.copy()
