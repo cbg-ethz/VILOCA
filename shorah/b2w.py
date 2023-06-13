@@ -414,7 +414,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 ref += k * "N"
 
                 if exclude_non_var_pos_threshold > 0:
-                    full_file_name = file_name + '.envp-ref-full.fas' # TODO not compatible with EWM
+                    full_file_name = file_name + '.envp-full-ref.fas' # TODO not compatible with EWM
                 else:
                     full_file_name = file_name + '.ref.fas'
 

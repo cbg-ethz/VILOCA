@@ -620,7 +620,7 @@ def main(args):
                 window_file, _, _, _, _ = line.rstrip().split("\t")
                 stem = window_file.split(".")[0]
                 envp_post.post_process_for_envp(
-                    open(f"raw_reads/{stem}.envp-ref-full.fas"),
+                    open(f"raw_reads/{stem}.envp-full-ref.fas"),
                     open(f"raw_reads/{stem}.envp-ref.fas"),
                     f"support/{stem}.reads-support.fas",
                     f"support/{stem}.reads-support.fas" # overwrite

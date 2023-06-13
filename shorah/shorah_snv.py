@@ -187,7 +187,8 @@ def _compare_ref_to_read(ref: str, seq: str, start, snp, av, post, chrom, haplot
 
     return tot_snv
 
-def parseWindow(line, extended_window_mode, working_dir, threshold=0.9):
+def parseWindow(line, extended_window_mode, exclude_non_var_pos_threshold,
+                working_dir, threshold=0.9):
     """SNVs from individual support files, getSNV will build
     the consensus SNVs
     It returns a dictionary called snp with the following structure
@@ -204,7 +205,12 @@ def parseWindow(line, extended_window_mode, working_dir, threshold=0.9):
     file_stem = "w-%s-%s-%s" % (chrom, beg, end)
     haplo_filename = os.path.join(working_dir, "support", file_stem + ".reads-support.fas")
 
-    ref_name = "ref" if not extended_window_mode else "extended-ref"
+    if extended_window_mode:
+        ref_name = "extended-ref"
+    elif exclude_non_var_pos_threshold > 0:
+        ref_name = "envp-full-ref"
+    else:
+        ref_name = "ref"
     ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas")
 
     start = int(beg)
@@ -259,7 +265,7 @@ def add_SNV_to_dict(all_dict, add_key, add_val):
     return all_dict
 
 
-def getSNV(extended_window_mode, working_dir, window_thresh=0.9):
+def getSNV(extended_window_mode, exclude_non_var_pos_threshold, working_dir, window_thresh=0.9):
     """Parses SNV from all windows and output the dictionary with all the
     information.
 
@@ -280,7 +286,8 @@ def getSNV(extended_window_mode, working_dir, window_thresh=0.9):
     ) as f_collect:
         f_collect.write("\t".join(standard_header_row) + "\n")
         for i in cov_file:
-            snp = parseWindow(i, extended_window_mode, working_dir, window_thresh)
+            snp = parseWindow(i, extended_window_mode, exclude_non_var_pos_threshold,
+                              working_dir, window_thresh)
             winFile, chrom, beg, end, cov = i.rstrip().split("\t")
             # all_snp = join_snp_dict(all_snp, snp)
             for SNV_id, val in sorted(snp.items()):
@@ -431,6 +438,7 @@ def main(args):
     extended_window_mode = args.extended_window_mode
     min_windows_coverage = args.min_windows_coverage
     working_dir = args.working_dir
+    exclude_non_var_pos_threshold = args.exclude_non_var_pos_threshold
 
     assert os.path.isdir(args.working_dir) or args.working_dir == ""
 
@@ -439,7 +447,8 @@ def main(args):
 
     # snpD_m is the file with the 'consensus' SNVs (from different windows)
     logging.debug("now parsing SNVs")
-    all_SNVs = getSNV(extended_window_mode, working_dir, posterior_thresh)
+    all_SNVs = getSNV(extended_window_mode, exclude_non_var_pos_threshold,
+                      working_dir, posterior_thresh)
 
     if path_insert_file is not None:
         min_windows_coverage = 1

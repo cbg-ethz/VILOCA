@@ -5,6 +5,7 @@ def _post_process_for_envp_write_rec(
         full_ref_handle, ref_handle, support_handle):
     with full_ref_handle as template:
         full_ref = np.array(list(template.readlines()[1]))
+        assert len(np.where(full_ref == "=")[0]) == 0
     with ref_handle as template:
         ref = np.array(list(template.readlines()[1]))
         excluded_pos = np.where(ref == "=")[0]
