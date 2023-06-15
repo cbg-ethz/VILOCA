@@ -150,7 +150,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         minimum_overlap *= window_length/original_window_length
 
     if exclude_non_var_pos_threshold > 0:
-        alphabet = "ACGT-N"
+        alphabet = "ACGT-NX"
         base_pair_distr_in_window = np.zeros((window_length, len(alphabet)), dtype=int)
 
     for read in iter:

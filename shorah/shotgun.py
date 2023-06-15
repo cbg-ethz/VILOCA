@@ -256,13 +256,11 @@ def get_prop(filename):
     if os.path.exists(filename):
         h = open(filename)
     elif os.path.exists(filename + '.gz'):
-        h = gzip.open(filename + '.gz', # TODO to be removed
-                      'rb' if sys.version_info < (3, 0) else 'rt')
+        h = gzip.open(filename + '.gz', 'rb')
     elif os.path.exists('debug/' + filename):
         h = open('debug/' + filename)
     elif os.path.exists('debug/' + filename + '.gz'):
-        h = gzip.open('debug/' + filename + '.gz', # TODO to be removed
-                      'rb' if sys.version_info < (3, 0) else 'rt')
+        h = gzip.open('debug/' + filename + '.gz', 'rb')
     else:
         return 'not found'
 
