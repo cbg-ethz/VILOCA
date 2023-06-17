@@ -443,7 +443,6 @@ def main(args):
     assert os.path.isdir(args.working_dir) or args.working_dir == ""
 
     logging.info(str(inspect.getfullargspec(main)))
-    ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
 
     # snpD_m is the file with the 'consensus' SNVs (from different windows)
     logging.debug("now parsing SNVs")
@@ -533,10 +532,12 @@ def main(args):
             f"##source=ShoRAH_{args.version}",
             f"##reference={args.f}",
         ]
+        ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
         for ref_name, ref_seq in ref_m.items(): # TODO can be removed? why?
             VCF_meta.append(
                 f"##contig=<ID={ref_name},length={len(ref_seq)}>",
             )
+
         VCF_meta.extend(
             [
                 '##INFO=<ID=Fvar,Number=1,Type=Integer,Description="Number of forward reads with variant">',

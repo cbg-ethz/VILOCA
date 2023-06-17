@@ -396,6 +396,19 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                     k = max(0, control_window_length - len(res_ref))
                     res_ref += k * "N"
 
+                    if exclude_non_var_pos_threshold > 0 and file_name_comp == "ref":
+                        _write_to_file([
+                            f'>{reference_name} {window_start}\n' + res_ref
+                        ], file_name + '.envp-full-ref.fas')
+
+                        envp_ref = np.array(list(res_ref))
+                        envp_ref[~pos_filter] = "="
+                        _write_to_file([
+                            f'>{reference_name} {window_start}\n' + "".join(envp_ref)
+                        ], file_name + '.envp-ref.fas')
+
+                        res_ref = "".join(np.array(list(ref))[pos_filter])
+
                     _write_to_file([
                         f'>{reference_name} {window_start}\n' + res_ref
                     ], f'{file_name}.{file_name_comp}.fas')
@@ -414,7 +427,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 ref += k * "N"
 
                 if exclude_non_var_pos_threshold > 0:
-                    full_file_name = file_name + '.envp-full-ref.fas' # TODO not compatible with EWM
+                    full_file_name = file_name + '.envp-full-ref.fas'
                 else:
                     full_file_name = file_name + '.ref.fas'
 
@@ -431,15 +444,15 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                     """
                 )
 
-            if exclude_non_var_pos_threshold > 0:
-                envp_ref = np.array(list(ref))
-                envp_ref[~pos_filter] = "="
-                _write_to_file([
-                    f'>{reference_name} {window_start}\n' + "".join(envp_ref)
-                ], file_name + '.envp-ref.fas')
-                _write_to_file([
-                    f'>{reference_name} {window_start}\n' + "".join(np.array(list(ref))[pos_filter])
-                ], file_name + '.ref.fas') # TODO not compatible with EWM
+                if exclude_non_var_pos_threshold > 0:
+                    envp_ref = np.array(list(ref))
+                    envp_ref[~pos_filter] = "="
+                    _write_to_file([
+                        f'>{reference_name} {window_start}\n' + "".join(envp_ref)
+                    ], file_name + '.envp-ref.fas')
+                    _write_to_file([
+                        f'>{reference_name} {window_start}\n' + "".join(np.array(list(ref))[pos_filter])
+                    ], file_name + '.ref.fas')
 
             if len(arr) > minimum_reads:
                 line = (
