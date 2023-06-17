@@ -265,6 +265,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
     if exclude_non_var_pos_threshold > 0 and len(arr) > 0:
         pos_filter = (1 - np.amax(base_pair_distr_in_window, axis=1) / np.sum(base_pair_distr_in_window, axis=1)
             >= exclude_non_var_pos_threshold)
+        logging.debug(f"Number of positions removed: {len(pos_filter) - pos_filter.sum()}")
 
         for idx, (_, _, rd) in enumerate(arr):
             arr[idx][2] = rd[pos_filter]
@@ -340,6 +341,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     )
 
     for idx, (window_start, window_length) in enumerate(tiling):
+        logging.info(f"Working on window (1-based) @ {window_start+1}")
         (arr, arr_read_qualities_summary, arr_read_summary,
          counter, control_window_length, pos_filter) = _run_one_window(
             samfile,
@@ -355,6 +357,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             extended_window_mode,
             exclude_non_var_pos_threshold
         )
+        logging.debug(f"Window length: {control_window_length}")
 
         window_end = window_start + window_length - 1
         file_name = f'w-{reference_name}-{window_start}-{window_end}'
@@ -395,6 +398,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
 
                     k = max(0, control_window_length - len(res_ref))
                     res_ref += k * "N"
+                    assert_condition = control_window_length == len(res_ref)
 
                     if exclude_non_var_pos_threshold > 0 and file_name_comp == "ref":
                         _write_to_file([
@@ -407,13 +411,16 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                             f'>{reference_name} {window_start}\n' + "".join(envp_ref)
                         ], file_name + '.envp-ref.fas')
 
-                        res_ref = "".join(np.array(list(ref))[pos_filter])
+                        reduced_ref = np.array(list(res_ref))[pos_filter]
+                        res_ref = "".join(reduced_ref)
+                        assert_condition = (control_window_length ==
+                                            len(reduced_ref) + len(pos_filter) - pos_filter.sum())
 
                     _write_to_file([
                         f'>{reference_name} {window_start}\n' + res_ref
                     ], f'{file_name}.{file_name_comp}.fas')
 
-                    assert control_window_length == len(res_ref), (
+                    assert assert_condition, (
                         f"""
                             Reference ({file_name_comp}) does not have same length as the window.
                             Location: {file_name}
@@ -450,9 +457,21 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                     _write_to_file([
                         f'>{reference_name} {window_start}\n' + "".join(envp_ref)
                     ], file_name + '.envp-ref.fas')
+                    reduced_ref = np.array(list(ref))[pos_filter]
                     _write_to_file([
-                        f'>{reference_name} {window_start}\n' + "".join(np.array(list(ref))[pos_filter])
+                        f'>{reference_name} {window_start}\n' + "".join(reduced_ref)
                     ], file_name + '.ref.fas')
+
+                    assert (control_window_length == len(envp_ref) and
+                            control_window_length == len(reduced_ref) + len(pos_filter) - pos_filter.sum()), (
+                        f"""
+                            Reference does not have same length as the window.
+                            Location: {file_name}
+                            Envp Ref: {len(envp_ref)}
+                            Ref: {len(reduced_ref)}
+                            Win: {control_window_length}
+                        """
+                    )
 
             if len(arr) > minimum_reads:
                 line = (
