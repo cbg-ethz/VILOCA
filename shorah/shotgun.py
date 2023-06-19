@@ -51,6 +51,7 @@ from . import b2w
 from . import tiling
 from . import pooled_pre
 from . import pooled_post
+from . import envp_post
 
 # import local haplotype inference methods
 from .local_haplotype_inference.use_quality_scores import run_dpm_mfa as use_quality_scores
@@ -89,19 +90,6 @@ count = {
 }
 clusters = [[]]
 untouched = [[]]
-
-
-def gzip_file(f_name):
-    """Gzip a file and return the name of the gzipped, removing the original
-    """
-    f_in = open(f_name, 'rb')
-    f_out = gzip.open(f_name + '.gz', 'wb')
-    f_out.writelines(f_in)
-    f_out.close()
-    f_in.close()
-    os.remove(f_in.name)
-
-    return f_out.name
 
 
 def parse_aligned_reads(reads_file):
@@ -152,46 +140,8 @@ def run_dpm(run_setting):
 
     filein, j, a, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold = run_setting
 
-    # if cor.fas.gz exists, skip
-    # greedy re match to handle situation where '.reads' appears in the ID
-    stem = re.match(r'^(?P<stem>.*).reads', filein).group('stem')
-    corgz = 'corrected/%s.reads-cor.fas.gz' % stem
-    if os.path.exists(corgz): # FIXME might by use when run multiple times with different flags
-        logging.debug('file %s already analysed, skipping', filein)
-        return
-
-    # if already run before, extract the read file
-    fstgz = 'raw_reads/%s.reads.fas.gz' % stem
-    if os.path.exists(filein):
-        pass
-    elif os.path.exists(fstgz):
-        shutil.move(fstgz, './')
-        subprocess.check_call(["gunzip", "%s-reads.gz" % stem])
-
     ref_in = filein.split('.reads.')[0] + str('.ref.fas')
-
-    # if already run before, extract the read file
-    fstgz = 'raw_reads/%s.reads.fas.gz' % stem
-    if os.path.exists(filein):
-        pass
-    elif os.path.exists(fstgz):
-        shutil.move(fstgz, './')
-        subprocess.check_call(["gunzip", "%s-reads.gz" % stem])
-
-    ref_fstgz = 'raw_reads/%s.ref.fas.gz' % stem
-    if os.path.exists(ref_in):
-        pass
-    elif os.path.exists(ref_fstgz):
-        shutil.move(ref_fstgz, './')
-        subprocess.check_call(["gunzip", "%s-ref.gz" % stem])
-
     fname_qualities = filein.split('.reads.')[0] + str('.qualities.npy')
-    fqual_fstgz = 'raw_reads/%s.qualities.npy.gz' % stem
-    if os.path.exists(fname_qualities):
-        pass
-    elif os.path.exists(fqual_fstgz):
-        shutil.move(fqual_fstgz, './')
-        subprocess.check_call(["gunzip", "%s-qualities.gz" % stem])
 
     logging.debug('Running sampler')
     if inference_type == 'shorah': # run the original sampler of ShoRAH
@@ -267,14 +217,13 @@ def correct_reads(chr_c, wstart, wend):
 
 
     try:
-        if os.path.exists('corrected/w-%s-%s-%s.reads-cor.fas.gz' %
-                          (chr_c, wstart, wend)):
-            cor_file = 'corrected/w-%s-%s-%s.reads-cor.fas.gz' % \
-                (chr_c, wstart, wend)
-            handle = gzip.open(
-                cor_file, 'rb' if sys.version_info < (3, 0) else 'rt')
+        cor_file = 'w-%s-%s-%s.reads-cor.fas' % (chr_c, wstart, wend)
+        if os.path.exists('corrected/' + cor_file + 'gz'):
+            handle = gzip.open( # TODO to be removed
+                cor_file + 'gz', 'rb' if sys.version_info < (3, 0) else 'rt')
+        elif os.path.exists('corrected/' + cor_file):
+            handle = open('corrected/' + cor_file, 'r')
         else:
-            cor_file = 'w-%s-%s-%s.reads-cor.fas' % (chr_c, wstart, wend)
             handle = open(cor_file, 'r')
 
         for seq_record in SeqIO.parse(handle, 'fasta'):
@@ -307,13 +256,11 @@ def get_prop(filename):
     if os.path.exists(filename):
         h = open(filename)
     elif os.path.exists(filename + '.gz'):
-        h = gzip.open(filename + '.gz',
-                      'rb' if sys.version_info < (3, 0) else 'rt')
+        h = gzip.open(filename + '.gz', 'rb')
     elif os.path.exists('debug/' + filename):
         h = open('debug/' + filename)
     elif os.path.exists('debug/' + filename + '.gz'):
-        h = gzip.open('debug/' + filename + '.gz',
-                      'rb' if sys.version_info < (3, 0) else 'rt')
+        h = gzip.open('debug/' + filename + '.gz', 'rb')
     else:
         return 'not found'
 
@@ -415,6 +362,18 @@ def merge_corrected_reads(aligned_read):
 
     return(ID, merged_corrected_read)
 
+def move_files_into_dir(dir, files):
+    for f in files:
+        if os.stat(f).st_size > 0:
+            try:
+                os.remove(f"{dir}/{f}")
+            except OSError:
+                pass
+            shutil.move(f, f"{dir}/")
+        else:
+            os.remove(f)
+
+
 
 # def main(in_bam, in_fasta, win_length=201, win_shifts=3, region='',
 #         max_coverage=10000, alpha=0.1, keep_files=True, seed=None):
@@ -432,7 +391,6 @@ def main(args):
     max_coverage = args.max_coverage
     alpha = args.a
     cov_thrd = args.cov_thrd
-    keep_files = args.keep_files
     seed = args.seed
     ignore_indels = args.ignore_indels
     maxthreads = args.maxthreads
@@ -443,6 +401,7 @@ def main(args):
     unique_modus = args.unique_modus
     inference_convergence_threshold = args.conv_thres
     extended_window_mode = args.extended_window_mode
+    exclude_non_var_pos_threshold = args.exclude_non_var_pos_threshold
     win_min_ext = args.win_min_ext
 
     logging.info(' '.join(sys.argv))
@@ -467,7 +426,6 @@ def main(args):
         seed = np.random.randint(100, size=1)
 
     incr = win_length // win_shifts
-    keep_all_files = keep_files
 
     # run b2w
 
@@ -510,7 +468,8 @@ def main(args):
             max_coverage,
             cov_thrd,
             in_fasta,
-            extended_window_mode=extended_window_mode
+            extended_window_mode=extended_window_mode,
+            exclude_non_var_pos_threshold=exclude_non_var_pos_threshold
         )
         logging.info('finished b2w')
 
@@ -550,19 +509,18 @@ def main(args):
 
     all_processes = [Process(target=run_dpm, args=(run_set,)) for run_set in runlist]
     for p in all_processes:
-      p.start()
+        p.start()
 
     for p in all_processes:
-      p.join()
+        p.join()
 
     # prepare directories
-    if keep_all_files:
-        for sd_name in ['debug', 'sampling', 'freq', 'support',
-                        'corrected', 'raw_reads', 'inference']:
-            try:
-                os.mkdir(sd_name)
-            except OSError:
-                pass
+    for sd_name in ['debug', 'sampling', 'freq', 'support',
+                    'corrected', 'raw_reads', 'inference']:
+        try:
+            os.mkdir(sd_name)
+        except OSError:
+            pass
 
     # parse corrected reads
     proposed = {}
@@ -588,106 +546,16 @@ def main(args):
         proposed[beg] = (get_prop(dbg_file), j)
         logging.info('there were %s proposed', str(proposed[beg][0]))
 
-    # (re)move intermediate files
-    if not keep_all_files:
-        logging.info('removing intermediate files')
-        tr_files = glob.glob('./w*reads.fas')
-        tr_files.extend(glob.glob('./*.smp'))
-        tr_files.extend(glob.glob('./w*.dbg'))
-        for trf in tr_files:
-            os.remove(trf)
-
-        tr_files = glob.glob('./w*reads-cor.fas')
-        tr_files.extend(glob.glob('./w*reads-freq.csv'))
-        tr_files.extend(glob.glob('./w*reads-support.fas'))
-        for trf in tr_files:
-            if os.stat(trf).st_size == 0:
-                os.remove(trf)
-    else:
-
-        for dbg_file in glob.glob('./w*dbg'):
-            if os.stat(dbg_file).st_size > 0:
-                #gzf = gzip_file(dbg_file)
-                try:
-                    os.remove('debug/%s' % dbg_file)
-                except OSError:
-                    pass
-                shutil.move(dbg_file, 'debug/')
-            else:
-                os.remove(dbg_file)
-
-        for smp_file in glob.glob('./w*smp'):
-            if os.stat(smp_file).st_size > 0:
-                #gzf = gzip_file(smp_file)
-                try:
-                    os.remove('sampling/%s' % smp_file)
-                except OSError:
-                    pass
-                shutil.move(smp_file, 'sampling/')
-            else:
-                os.remove(smp_file)
-
-        for cor_file in glob.glob('./w*reads-cor.fas'):
-            if os.stat(cor_file).st_size > 0:
-                #gzf = gzip_file(cor_file)
-                try:
-                    os.remove('corrected/%s' % cor_file)
-                except OSError:
-                    pass
-                shutil.move(cor_file, 'corrected/')
-            else:
-                os.remove(cor_file)
-
-        for sup_file in glob.glob('./w*reads-support.fas'):
-            if os.stat(sup_file).st_size > 0:
-                #gzf = gzip_file(sup_file)
-                try:
-                    os.remove('support/%s' % sup_file)
-                except OSError:
-                    pass
-                shutil.move(sup_file, 'support/')
-            else:
-                os.remove(sup_file)
-
-        for freq_file in glob.glob('./w*reads-freq.csv'):
-            if os.stat(freq_file).st_size > 0:
-                #gzf = gzip_file(freq_file)
-                try:
-                    os.remove('freq/%s' % freq_file)
-                except OSError:
-                    pass
-                shutil.move(freq_file, 'freq/')
-            else:
-                os.remove(freq_file)
-
-        for raw_file in glob.glob('./w*reads.fas') + glob.glob('./w*ref.fas') + glob.glob('./w*qualities.npy'):
-            if os.stat(raw_file).st_size > 0:
-                #gzf = gzip_file(raw_file)
-                try:
-                    os.remove('raw_reads/%s' % raw_file)
-                except OSError:
-                    pass
-                shutil.move(raw_file, 'raw_reads/')
-            else:
-                os.remove(raw_file)
-
-        # collect files from inference
-        inference_files = (
-            glob.glob("./w*best_run.txt")
-            + glob.glob("./w*history_run*.csv")
-            + glob.glob("./w*results*.pkl")
-        )
-
-        for inf_file in inference_files:
-            if os.stat(inf_file).st_size > 0:
-                #gzf = gzip_file(inf_file)
-                try:
-                    os.remove("inference/%s" % inf_file)
-                except OSError:
-                    pass
-                shutil.move(inf_file, "inference/")
-            else:
-                os.remove(inf_file)
+    move_files_into_dir("debug", glob.glob("./w*dbg"))
+    move_files_into_dir("sampling", glob.glob("./w*smp"))
+    move_files_into_dir("corrected", glob.glob("./w*reads-cor.fas"))
+    move_files_into_dir("support", glob.glob("./w*reads-support.fas"))
+    move_files_into_dir("freq", glob.glob("./w*reads-freq.csv"))
+    move_files_into_dir("sampling", glob.glob("./w*smp"))
+    raw_reads_files = glob.glob('./w*reads.fas') + glob.glob('./w*ref.fas') + glob.glob('./w*qualities.npy')
+    move_files_into_dir("raw_reads", raw_reads_files)
+    inference_files = glob.glob("./w*best_run.txt") + glob.glob("./w*history_run*.csv") + glob.glob("./w*results*.pkl")
+    move_files_into_dir("inference", inference_files)
 
     ############################################
     ##      Print the corrected reads         ##
@@ -743,6 +611,20 @@ def main(args):
     logging.info('running snv.py')
     args.increment = win_length // win_shifts # TODO remove dependency on these vars
 
+    # ENVP
+    if exclude_non_var_pos_threshold > 0:
+        with open("coverage.txt") as cov:
+            for line in cov:
+                window_file, _, _, _, _ = line.rstrip().split("\t")
+                stem = window_file.split(".")[0]
+                envp_post.post_process_for_envp(
+                    open(f"raw_reads/{stem}.envp-full-ref.fas"),
+                    open(f"raw_reads/{stem}.envp-ref.fas"),
+                    f"support/{stem}.reads-support.fas",
+                    f"support/{stem}.reads-support.fas" # overwrite
+                )
+
+    # Pooled
     b_list = args.b.copy()
     if len(b_list) > 1:
         for idx, i in enumerate(b_list):
