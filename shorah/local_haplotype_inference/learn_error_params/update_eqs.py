@@ -32,7 +32,6 @@ def update(
     mean_h = update_mean_haplo(
         reads_seq_binary,
         reads_weights,
-        reads_list,
         reference_binary,
         mean_z,
         mean_log_theta,
@@ -114,9 +113,8 @@ def update_mean_cluster(
 
 
 def update_mean_haplo(
-    reads_seq_binary,
+    reads_seq_binary, # preparation.reads_list_to_array(reads_list)
     reads_weights,
-    reads_list,
     reference_table,
     mean_cluster,
     mean_log_theta,

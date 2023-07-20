@@ -109,7 +109,7 @@ def main():
     required = parent_parser.add_argument_group('required arguments')
 
     required.add_argument("-b", "--bam", metavar='BAM', required=True,
-                          type=str, dest="b", help="sorted bam format alignment file")
+                          type=str, dest="b", nargs='+', help="sorted bam format alignment file")
 
     required.add_argument("-f", "--fasta", metavar='REF', required=True,
                           type=str, dest="f", help="reference genome in fasta format")
@@ -164,6 +164,9 @@ def main():
     parser_shotgun.add_argument("-w", "--windowsize", metavar='INT',
                                 required=False, type=int, dest="w", default=201, help="window size")
 
+    parser_shotgun.add_argument("--win_min_ext", metavar='FLOAT',
+                                required=False, type=float, dest="win_min_ext", default=0.85, help="win_min_ext: Minimum percentage of bases to overlap between reference and read to be considered in a window. The rest (i.e. non-overlapping part) will be filled with Ns.")
+
     parser_shotgun.add_argument("-s", "--winshifts", metavar='INT', required=False,
                                 type=int, default=3, dest="win_shifts", help="number of window shifts")
 
@@ -200,6 +203,8 @@ def main():
     parser_shotgun.add_argument('--extended_window_mode', action='store_true', dest="extended_window_mode",
                                 help="Runs b2w in extended window mode where fake inserations are placed into reference and read.")
 
+    parser_shotgun.add_argument('--exclude_non_var_pos_threshold', metavar='FLOAT', type=float, dest="exclude_non_var_pos_threshold",
+                                default=-1, help="Runs exclude non-variable positions mode. Set percentage threshold for exclusion.")
     parser_shotgun.add_argument("--min_windows_coverage", metavar='INT', type=int,
                                 required=False, default=2, dest="min_windows_coverage",
                                 help="Number of windows that need to cover a mutation to have it called.")

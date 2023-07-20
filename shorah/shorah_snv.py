@@ -45,7 +45,6 @@
 """
 
 import glob
-import gzip
 import os
 import sys
 import warnings
@@ -188,7 +187,8 @@ def _compare_ref_to_read(ref: str, seq: str, start, snp, av, post, chrom, haplot
 
     return tot_snv
 
-def parseWindow(line, extended_window_mode, threshold=0.9):
+def parseWindow(line, extended_window_mode, exclude_non_var_pos_threshold,
+                working_dir, threshold=0.9):
     """SNVs from individual support files, getSNV will build
     the consensus SNVs
     It returns a dictionary called snp with the following structure
@@ -203,16 +203,21 @@ def parseWindow(line, extended_window_mode, threshold=0.9):
     _, chrom, beg, end, _ = line.rstrip().split("\t")
 
     file_stem = "w-%s-%s-%s" % (chrom, beg, end)
-    haplo_filename = os.path.join("support", file_stem + ".reads-support.fas.gz")
+    haplo_filename = os.path.join(working_dir, "support", file_stem + ".reads-support.fas")
 
-    ref_name = "ref" if not extended_window_mode else "extended-ref"
-    ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas.gz")
+    if extended_window_mode:
+        ref_name = "extended-ref"
+    elif exclude_non_var_pos_threshold > 0:
+        ref_name = "envp-full-ref"
+    else:
+        ref_name = "ref"
+    ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas")
 
     start = int(beg)
     max_snv = -1
 
     try:
-        with gzip.open(haplo_filename, "rt") as window, gzip.open(ref_filename, "rt") as ref:
+        with open(haplo_filename, "rt") as window, open(ref_filename, "rt") as ref:
             d = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(ref, "fasta")])
             refSlice = d[chrom]
 
@@ -260,7 +265,7 @@ def add_SNV_to_dict(all_dict, add_key, add_val):
     return all_dict
 
 
-def getSNV(extended_window_mode, window_thresh=0.9):
+def getSNV(extended_window_mode, exclude_non_var_pos_threshold, working_dir, window_thresh=0.9):
     """Parses SNV from all windows and output the dictionary with all the
     information.
 
@@ -277,11 +282,12 @@ def getSNV(extended_window_mode, window_thresh=0.9):
 
     # cycle over all windows reported in coverage.txt
     with open("coverage.txt") as cov_file, open(
-        "raw_snv_collected.tsv", "w"
+        os.path.join(working_dir, "raw_snv_collected.tsv"), "w"
     ) as f_collect:
         f_collect.write("\t".join(standard_header_row) + "\n")
         for i in cov_file:
-            snp = parseWindow(i, extended_window_mode, window_thresh)
+            snp = parseWindow(i, extended_window_mode, exclude_non_var_pos_threshold,
+                              working_dir, window_thresh)
             winFile, chrom, beg, end, cov = i.rstrip().split("\t")
             # all_snp = join_snp_dict(all_snp, snp)
             for SNV_id, val in sorted(snp.items()):
@@ -325,7 +331,7 @@ def getSNV(extended_window_mode, window_thresh=0.9):
 
     return all_snp
 
-def writeRaw(all_snv, min_windows_coverage):
+def writeRaw(all_snv, min_windows_coverage, working_dir):
     """Write the SNVs that were collected for each window into
     - raw_snv.tsv: contains all SNVs
     - SNV.tsv: contains only SNVs that are covered by at least {min_windows_coverage}
@@ -344,7 +350,8 @@ def writeRaw(all_snv, min_windows_coverage):
         "Pst" + str(k + 1) for k in range(max_number_window_covering_SNV)
     ]
 
-    with open("raw_snv.tsv", "w") as f_raw_snv, open("SNV.tsv", "w") as f_SNV:
+    with (open(os.path.join(working_dir, "raw_snv.tsv"), "w") as f_raw_snv,
+          open(os.path.join(working_dir, "SNV.tsv"), "w") as f_SNV):
         f_raw_snv.write("\t".join(header_row) + "\n")
         f_SNV.write("\t".join(header_row) + "\n")
 
@@ -430,19 +437,24 @@ def main(args):
     path_insert_file = args.path_insert_file
     extended_window_mode = args.extended_window_mode
     min_windows_coverage = args.min_windows_coverage
+    working_dir = args.working_dir
+    exclude_non_var_pos_threshold = args.exclude_non_var_pos_threshold
+
+    assert os.path.isdir(args.working_dir) or args.working_dir == ""
 
     logging.info(str(inspect.getfullargspec(main)))
-    ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
 
     # snpD_m is the file with the 'consensus' SNVs (from different windows)
     logging.debug("now parsing SNVs")
-    all_SNVs = getSNV(extended_window_mode, posterior_thresh)
+    all_SNVs = getSNV(extended_window_mode, exclude_non_var_pos_threshold,
+                      working_dir, posterior_thresh)
+
     if path_insert_file is not None:
         min_windows_coverage = 1
 
-    writeRaw(all_SNVs, min_windows_coverage)
+    writeRaw(all_SNVs, min_windows_coverage, working_dir)
 
-    with open("raw_snv.tsv") as f_raw_snv:
+    with open(os.path.join(working_dir, "raw_snv.tsv")) as f_raw_snv:
         windows_header_row = f_raw_snv.readline().split("\t")
         windows_header_row[-1] = windows_header_row[-1].split("\n")[0]
 
@@ -453,8 +465,8 @@ def main(args):
     # run strand bias filter
     retcode_n = sb_filter(
         bam_file,
-        "SNV.tsv",
-        "SNVs_",
+        os.path.join(working_dir, "SNV.tsv"),
+        os.path.join(working_dir, "SNVs_"),
         sigma,
         amplimode=a,
         drop_indels=d,
@@ -462,10 +474,10 @@ def main(args):
     )
 
     if retcode_n != 0:
-        logging.error('sb_filter exited with error %d', retcode_m)
+        logging.error('sb_filter exited with error %d', retcode_n)
         sys.exit()
 
-    snpFile = glob.glob("SNVs_*.tsv")[0] # takes the first file only
+    snpFile = glob.glob(os.path.join(working_dir, "SNVs_*.tsv"))[0] # takes the first file only
     logging.debug(f"For BH - selected file: {snpFile}")
 
     write_list = []
@@ -520,10 +532,12 @@ def main(args):
             f"##source=ShoRAH_{args.version}",
             f"##reference={args.f}",
         ]
+        ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
         for ref_name, ref_seq in ref_m.items(): # TODO can be removed? why?
             VCF_meta.append(
                 f"##contig=<ID={ref_name},length={len(ref_seq)}>",
             )
+
         VCF_meta.extend(
             [
                 '##INFO=<ID=Fvar,Number=1,Type=Integer,Description="Number of forward reads with variant">',

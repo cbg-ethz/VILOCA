@@ -130,7 +130,7 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
 def _run_one_window(samfile, window_start, reference_name, window_length,
         minimum_overlap, permitted_reads_per_location, counter,
         exact_conformance_fix_0_1_basing_in_reads, indel_map, max_ins_at_pos,
-        extended_window_mode):
+        extended_window_mode, exclude_non_var_pos_threshold):
 
     arr = []
     arr_read_summary = []
@@ -148,6 +148,10 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
             if window_start <= pos < window_start + original_window_length:
                 window_length += val
         minimum_overlap *= window_length/original_window_length
+
+    if exclude_non_var_pos_threshold > 0:
+        alphabet = "ACGT-NX"
+        base_pair_distr_in_window = np.zeros((window_length, len(alphabet)), dtype=int)
 
     for read in iter:
 
@@ -210,7 +214,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
 
             cut_out_read = full_read[s]
             if full_qualities is None:
-                logging.warning("No sequencing quality scores provided in alignment file. Run --sampler learn_error_params.")
+                logging.warning("[b2w] No sequencing quality scores provided in alignment file. Run --sampler learn_error_params.")
                 cut_out_qualities = None
             else:
                 cut_out_qualities = full_qualities[s]
@@ -240,13 +244,13 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                     "quality unequal window size"
                 )
 
-            if exact_conformance_fix_0_1_basing_in_reads == False:
-                # first_aligned_pos is 0-based
-                arr_line = f'>{read.query_name} {first_aligned_pos}\n{cut_out_read}'
-            else:
-                arr_line = f'>{read.query_name} {first_aligned_pos+1}\n{cut_out_read}'
+            if exclude_non_var_pos_threshold > 0:
+                for idx, letter in enumerate(cut_out_read):
+                    base_pair_distr_in_window[idx][alphabet.index(letter)] += 1
 
-            arr.append(arr_line)
+            c = 0 if exact_conformance_fix_0_1_basing_in_reads == False else 1
+            arr.append([read.query_name, first_aligned_pos + c, np.array(list(cut_out_read))])
+
             if cut_out_qualities is None:
                 arr_read_qualities_summary = None
             else:
@@ -257,16 +261,30 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
                 (read.query_name, read.reference_start + 1, read.reference_end, full_read)
             )
 
+    pos_filter = None
+    if exclude_non_var_pos_threshold > 0 and len(arr) > 0:
+        pos_filter = (1 - np.amax(base_pair_distr_in_window, axis=1) / np.sum(base_pair_distr_in_window, axis=1)
+            >= exclude_non_var_pos_threshold)
+        logging.debug(f"Number of positions removed: {len(pos_filter) - pos_filter.sum()}")
+
+        for idx, (_, _, rd) in enumerate(arr):
+            arr[idx][2] = rd[pos_filter]
+            arr_read_qualities_summary[idx] = arr_read_qualities_summary[idx][pos_filter] # TODO works?
+
     counter = window_start + window_length
 
-    return arr, arr_read_qualities_summary, arr_read_summary, counter, window_length
+    # TODO move out of this function
+    convert_to_printed_fmt = lambda x: [f'>{k[0]} {k[1]}\n{"".join(k[2])}' for k in x]
+
+    return convert_to_printed_fmt(arr), arr_read_qualities_summary, arr_read_summary, counter, window_length, pos_filter
 
 
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     win_min_ext: float, maximum_reads: int, minimum_reads: int,
     reference_filename: str,
     exact_conformance_fix_0_1_basing_in_reads: Optional[bool] = False,
-    extended_window_mode: Optional[bool] = False) -> None:
+    extended_window_mode: Optional[bool] = False,
+    exclude_non_var_pos_threshold: Optional[float] = -1) -> None:
     """Summarizes reads aligned to reference into windows.
     Three products are created:
     #. Multiple FASTA files (one for each window position)
@@ -292,8 +310,13 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             conformance with the old version (in tests).
         extended_window_mode: Mode where inserts are not deleted but kept. The
             windows are instead extended with artificial/fake deletions.
+        exclude_non_var_pos_threshold: Percentage value below which non-variable
+            positions are excluded. Set to -1 if no position should be excluded
+            (the default).
     """
     assert 0 <= win_min_ext <= 1
+    assert (0 <= exclude_non_var_pos_threshold <= 1 or
+            exclude_non_var_pos_threshold == -1)
 
     pysam.index(alignment_file)
     samfile = pysam.AlignmentFile(
@@ -318,8 +341,9 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     )
 
     for idx, (window_start, window_length) in enumerate(tiling):
+        logging.info(f"Working on window (1-based) @ {window_start+1}")
         (arr, arr_read_qualities_summary, arr_read_summary,
-         counter, control_window_length) = _run_one_window(
+         counter, control_window_length, pos_filter) = _run_one_window(
             samfile,
             window_start - 1, # make 0 based
             reference_name,
@@ -330,8 +354,10 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             exact_conformance_fix_0_1_basing_in_reads,
             indel_map,
             max_ins_at_pos,
-            extended_window_mode
+            extended_window_mode,
+            exclude_non_var_pos_threshold
         )
+        logging.debug(f"Window length: {control_window_length}")
 
         window_end = window_start + window_length - 1
         file_name = f'w-{reference_name}-{window_start}-{window_end}'
@@ -372,12 +398,29 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
 
                     k = max(0, control_window_length - len(res_ref))
                     res_ref += k * "N"
+                    assert_condition = control_window_length == len(res_ref)
+
+                    if exclude_non_var_pos_threshold > 0 and file_name_comp == "ref":
+                        _write_to_file([
+                            f'>{reference_name} {window_start}\n' + res_ref
+                        ], file_name + '.envp-full-ref.fas')
+
+                        envp_ref = np.array(list(res_ref))
+                        envp_ref[~pos_filter] = "="
+                        _write_to_file([
+                            f'>{reference_name} {window_start}\n' + "".join(envp_ref)
+                        ], file_name + '.envp-ref.fas')
+
+                        reduced_ref = np.array(list(res_ref))[pos_filter]
+                        res_ref = "".join(reduced_ref)
+                        assert_condition = (control_window_length ==
+                                            len(reduced_ref) + len(pos_filter) - pos_filter.sum())
 
                     _write_to_file([
                         f'>{reference_name} {window_start}\n' + res_ref
                     ], f'{file_name}.{file_name_comp}.fas')
 
-                    assert control_window_length == len(res_ref), (
+                    assert assert_condition, (
                         f"""
                             Reference ({file_name_comp}) does not have same length as the window.
                             Location: {file_name}
@@ -390,9 +433,14 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 k = max(0, control_window_length - len(ref))
                 ref += k * "N"
 
+                if exclude_non_var_pos_threshold > 0:
+                    full_file_name = file_name + '.envp-full-ref.fas'
+                else:
+                    full_file_name = file_name + '.ref.fas'
+
                 _write_to_file([
                     f'>{reference_name} {window_start}\n' + ref
-                ], file_name + '.ref.fas')
+                ], full_file_name)
 
                 assert control_window_length == len(ref), (
                     f"""
@@ -402,6 +450,28 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                         Win: {control_window_length}
                     """
                 )
+
+                if exclude_non_var_pos_threshold > 0:
+                    envp_ref = np.array(list(ref))
+                    envp_ref[~pos_filter] = "="
+                    _write_to_file([
+                        f'>{reference_name} {window_start}\n' + "".join(envp_ref)
+                    ], file_name + '.envp-ref.fas')
+                    reduced_ref = np.array(list(ref))[pos_filter]
+                    _write_to_file([
+                        f'>{reference_name} {window_start}\n' + "".join(reduced_ref)
+                    ], file_name + '.ref.fas')
+
+                    assert (control_window_length == len(envp_ref) and
+                            control_window_length == len(reduced_ref) + len(pos_filter) - pos_filter.sum()), (
+                        f"""
+                            Reference does not have same length as the window.
+                            Location: {file_name}
+                            Envp Ref: {len(envp_ref)}
+                            Ref: {len(reduced_ref)}
+                            Win: {control_window_length}
+                        """
+                    )
 
             if len(arr) > minimum_reads:
                 line = (

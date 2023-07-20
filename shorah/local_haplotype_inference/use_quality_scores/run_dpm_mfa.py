@@ -3,8 +3,9 @@
 import sys
 import os
 import logging
-import json
-import numpy as np
+#import json
+#import numpy as np
+import pickle
 
 # my python-scripts
 from . import preparation
@@ -16,11 +17,11 @@ logging.basicConfig(
 )
 
 
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
+# class NumpyEncoder(json.JSONEncoder):
+#     def default(self, obj):
+#         if isinstance(obj, np.ndarray):
+#             return obj.tolist()
+#         return json.JSONEncoder.default(self, obj)
 
 
 def main(
@@ -103,8 +104,11 @@ def main(
     exit_meassage = sorted_results[0][1]["exit_message"]
     logging.info("CAVI termination " + str(exit_meassage))
 
-    with open(output_name + "all_results.json", "w") as f:
-        json.dump(sorted_results[0][1], f, cls=NumpyEncoder)
+    # with open(output_name + "all_results.json", "w") as f:
+    #     json.dump(sorted_results[0][1], f, cls=NumpyEncoder)
+
+    with open(output_name + "all_results.pkl", "wb") as f2:
+        pickle.dump(sorted_results, f2)
 
     # TODO: Would be nicer to use json dump.
     # import json
@@ -116,6 +120,7 @@ def main(
     )
 
     state_curr_dict = result_list[best_run_idx][0]
+
     summary = analyze_results.summarize_results(
         state_curr_dict,
         alphabet,

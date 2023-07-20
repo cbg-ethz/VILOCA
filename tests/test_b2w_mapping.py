@@ -44,7 +44,7 @@ class MockAlignedSegment:
                 cnt += i[1]
 
 # window_start is 0 based
-@pytest.mark.parametrize("mArr,spec,window_length,window_start,extended_window_mode", [
+@pytest.mark.parametrize("mArr,spec,window_length,window_start,extended_window_mode,exclude_non_var_pos_threshold", [
     ([
         MockAlignedSegment(
             "89.6-2108",
@@ -54,7 +54,7 @@ class MockAlignedSegment:
         )
     ],[
         "CAGATGATACAGTATTAGAAGAATTGAG-TTGCCAGGGAGATGGAAACCAAAAATGATAGGGGGAATTGGAGGTTTTATCAAAGTAAGACAGTATGAGCAGATAGACATAGAAATCTGTGGACATAAAGCTAAAGGTACAGTATTAGTAGGACCTACACCTGTCAACATAATTGGAAGAAATCTGTTGACTCAGATTGGTT"
-    ], 201, 2334, False),
+    ], 201, 2334, False, -1),
     ([
         MockAlignedSegment(
             "Q1",
@@ -78,7 +78,7 @@ class MockAlignedSegment:
         "AAGTAGGGGGGCAAC",
         "NNAAGTAGGGGGGCA",
         "GCAACTAAAGNNNNN"
-    ], 15, 2291, False),
+    ], 15, 2291, False, -1),
     ([
         MockAlignedSegment(
             "Q1",
@@ -95,7 +95,7 @@ class MockAlignedSegment:
     ],[
         "AAA--AACCCGGAAAAAAAA",
         "GGGCCAA---AAAAAAAAAA"
-    ], 15, 2291, True),
+    ], 15, 2291, True, -1),
     ([
         MockAlignedSegment(
             "Q1",
@@ -112,7 +112,7 @@ class MockAlignedSegment:
     ],[
         "AAAA--ACCCGGAAAAAAA",
         "GGGCCAA---AAAAAAAAA"
-    ], 14, 2291, True),
+    ], 14, 2291, True, -1),
     ([
         MockAlignedSegment(
             "Q1",
@@ -129,7 +129,7 @@ class MockAlignedSegment:
     ],[
         "AAAAACCCGGAAAA--AAAAAACCCCCCCNNNN",
         "GGGCC---AAACCGTTAAAAAAAAAAAGGCNNN"
-    ], 25, 2291, True),
+    ], 25, 2291, True, -1),
     ([
         MockAlignedSegment(
             "Q1",
@@ -146,7 +146,7 @@ class MockAlignedSegment:
     ],[
         "AB-CDEFGH",
         "ABG--CDEF"
-    ], 8, 2291, True),
+    ], 8, 2291, True, -1),
     ([
         MockAlignedSegment(
             "Ref",
@@ -177,7 +177,7 @@ class MockAlignedSegment:
         "AC----AGGAATAC",
         "ACAAGTAGGA-TAC",
         "ACAA-TTG----AC"
-    ], 10, 2291, True),
+    ], 10, 2291, True, -1),
     ([
         MockAlignedSegment(
             "Ref",
@@ -201,7 +201,7 @@ class MockAlignedSegment:
         "AG--GTA--CG---TAC",
         "ACAAGT----GAAATAC",
         "A-A-GTAAACG---TAC"
-    ], 10, 2291, True),
+    ], 10, 2291, True, -1),
     ([
         MockAlignedSegment(
             "Ref",
@@ -225,7 +225,7 @@ class MockAlignedSegment:
         "AG--GTA--CG---TACNN",
         "ACAAGT----GAAATACNN",
         "A-A-GTAAACG---TACNN"
-    ], 12, 2291, True),
+    ], 12, 2291, True, -1),
     ([
         MockAlignedSegment(
             "Ref",
@@ -249,9 +249,57 @@ class MockAlignedSegment:
         "A--GGTA-CGTA-C",
         "NNNNNTAACGTAAC",
         "AATGGTA-CGTNNN"
-    ], 10, 91, True)
+    ], 10, 91, True, -1),
+    ([
+        MockAlignedSegment(
+            "Q1",
+            2291,
+            "AAGAAGGGGGGCAACTAAAG",
+            "20M"
+        ),
+        MockAlignedSegment(
+            "Q2",
+            2293,
+            "AAGTAGGGGGGCAACTAAAG",
+            "20M"
+        ),
+        MockAlignedSegment(
+            "Q3",
+            2281,
+            "AAGTAGGGGGGCAACTAAAG",
+            "20M"
+        )
+    ],[
+        "AAGAGGGGGCAAC",
+        "NNAGTAGGGGGCA",
+        "GCACTAAANNNNN"
+    ], 15, 2291, False, 0.1),
+    ([
+        MockAlignedSegment(
+            "Ref",
+            2291,
+            "AGGTACGTAC",
+            "10M"
+        ),
+        MockAlignedSegment(
+            "R1",
+            2291,
+            "ACAAGTGAAATAC",
+            "2M2I2M2D1M3I3M"
+        ),
+        MockAlignedSegment(
+            "R2",
+            2291,
+            "AAGTAAACGTAC",
+            "1M1D1I3M2I5M"
+        )
+    ],[
+        "G--A--C---",
+        "CAA----AAA",
+        "-A-AAAC---"
+    ], 12, 2291, True, 0.1),
 ])
-def test_run_one_window(mArr, spec, window_length, window_start, extended_window_mode, mocker):
+def test_run_one_window(mArr, spec, window_length, window_start, extended_window_mode, exclude_non_var_pos_threshold, mocker):
 
     indels_map = []
     for m in mArr:
@@ -278,7 +326,7 @@ def test_run_one_window(mArr, spec, window_length, window_start, extended_window
     mock_dict = mocker.MagicMock()
     mock_dict.__getitem__.return_value = 42
 
-    arr, _, _, _, _ = b2w._run_one_window(
+    arr, _, _, _, _, _ = b2w._run_one_window(
         mock_samfile,
         window_start,
         "HXB2-does-not-matter",
@@ -289,7 +337,8 @@ def test_run_one_window(mArr, spec, window_length, window_start, extended_window
         True,
         indels_map,
         max_indel_at_pos,
-        extended_window_mode
+        extended_window_mode,
+        exclude_non_var_pos_threshold
     )
     print(arr)
 
