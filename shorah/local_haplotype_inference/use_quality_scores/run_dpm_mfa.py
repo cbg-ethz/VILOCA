@@ -65,6 +65,7 @@ def main(
             reads_log_error_proba,
             n_starts,
             output_name,
+            convergence_threshold
         )
 
     else:
@@ -95,7 +96,7 @@ def main(
     ]
     # sort list of tuple by ELBO value
     sort_elbo.sort(key=lambda x: x[1], reverse=True)
-
+    
     best_run_idx = sort_elbo[0][0]
     best_run_elbo = sort_elbo[0][1]
     logging.info("Maximal ELBO " + str(best_run_elbo) + "in run " + str(best_run_idx))
