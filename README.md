@@ -51,6 +51,8 @@ There are several parameters available:
 
 `--exclude_non_var_pos_threshold`: Percentage threshold for positions exclusion. Positions with base variations below this threshold will be excluded from the analysis, instead this position will be treated as if it only contains the reference base. This means that mutations of frequency < `exclude_non_var_pos_threshold` will not be called.
 
+`--windowsize`: In case no insert file is provided, the genome is tiled into uniform local regions. `windowsize` determines the length of those local regions. It should be of roughly the length of the reads. This is also the length of the haplotypes that are produced.
+
 ## Development/CI with Docker
 The following command in the root directory will let you interact with the project locally through Docker.
 ```bash
