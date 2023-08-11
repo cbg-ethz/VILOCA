@@ -26,14 +26,32 @@ pip install git+https://github.com/LaraFuhrmann/VILOCA@master
 To test your installation, we recommend running the program on `tests/data_1`.
 
 If the sequencing amplicon strategy is known, we recommend using the amplicon-mode of the program, which takes as input the `<smth>.insert.bed` - file:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --sampler use_quality_scores`
+`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode use_quality_scores`
 
 If the sequencing quality scores are not trustable, the sequencing error parameters can also be learned:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --sampler learn_error_params`.
+`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode learn_error_params`.
 
 If there is no information on the sequencing amplicon strategy available, run:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta --sampler use_quality_scores`
+`shorah shotgun -b test_aln.cram -f test_ref.fasta --mode use_quality_scores`
 
+### Parameters
+There are several parameters available:  
+`-b` [mandatory] sorted bam format alignment file  
+
+`-f` [mandatory] reference genome in fasta format for mutation calling  
+
+`-z` path to an (optional) insert file (primer tiling strategy), if available we highly recommend providing this file  
+
+`--mode` mode to use:  
+  - `learn_error_params`: model that is learning the error rate from the data  
+  - `use_quality_scores`: model incorporating the sequencing quality scores that are passed through the alignment file  
+  - `shorah`: use the tool ShoRAH (https://github.com/cbg-ethz/shorah)
+
+`--extended_window_mode`: flag to call insertions (default: this flag is turned off)  
+
+`--exclude_non_var_pos_threshold`: Percentage threshold for positions exclusion. Positions with base variations below this threshold will be excluded from the analysis, instead this position will be treated as if it only contains the reference base. This means that mutations of frequency < `exclude_non_var_pos_threshold` will not be called.
+
+`--windowsize`: In case no insert file is provided, the genome is tiled into uniform local regions. `windowsize` determines the length of those local regions. It should be of roughly the length of the reads. This is also the length of the haplotypes that are produced.
 
 ## Development/CI with Docker
 The following command in the root directory will let you interact with the project locally through Docker.

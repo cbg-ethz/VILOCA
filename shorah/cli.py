@@ -175,7 +175,7 @@ def main():
 
     parser_shotgun.add_argument("-t", "--threads", metavar='INT', required=False,
                             type=int, dest="maxthreads", default=0,
-                            help="limit maximum number of parallel sampler threads\n(0: CPUs count-1, n: limit to n)")
+                            help="limit maximum number of parallel threads\n(0: CPUs count-1, n: limit to n)")
 
     parser_shotgun.add_argument("-z", "--insert-file", metavar='INSERT_FILE', type=str,
                                 required=False, default=None, dest="path_insert_file",
@@ -193,12 +193,12 @@ def main():
                                 required=False, default=1, dest="n_mfa_starts",
                                 help="Number of starts for inference type mean_field_approximation.")
 
-    parser_shotgun.add_argument('--sampler', choices=['shorah','learn_error_params','use_quality_scores'],
+    parser_shotgun.add_argument('--mode', choices=['shorah','learn_error_params','use_quality_scores'],
                                 default='shorah', dest="inference_type",
-                                help="inference_types: shorah,  learn_error_params, use_quality_scores")
+                                help="Mode in which to run VILOCA: shorah,  learn_error_params, use_quality_scores")
 
     parser_shotgun.add_argument('--non-unique_modus', action='store_false', dest="unique_modus",
-                                help="For inference: Make read set unique with read weights. Cannot be used with --sampler shorah.")
+                                help="For inference: Make read set unique with read weights. Cannot be used with --mode shorah.")
 
     parser_shotgun.add_argument('--extended_window_mode', action='store_true', dest="extended_window_mode",
                                 help="Runs b2w in extended window mode where fake inserations are placed into reference and read.")
@@ -228,7 +228,7 @@ def main():
     # parse the args
     args = parser.parse_args()
     if args.inference_type == 'shorah' and args.unique_modus == False:
-        parser.error('--non-unique_modus cannot be used with --sampler shorah.')
+        parser.error('--non-unique_modus cannot be used with --mode shorah.')
 
     # Add version to argparser to add as meta in VCF output
     args.version = __version__.strip()
