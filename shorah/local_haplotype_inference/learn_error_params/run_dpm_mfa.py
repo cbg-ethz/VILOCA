@@ -41,19 +41,36 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
     reference_binary = preparation.reference2binary(reference_seq, alphabet)
     reads_list = preparation.load_fasta2reads_list(freads_in, alphabet, unique_modus)
     reads_seq_binary, reads_weights = preparation.reads_list_to_array(reads_list)
-    result_list = [cavi.run_cavi(
-        K,
-        alpha0,
-        alphabet,
-        reference_binary,
-        reference_seq,
-        reads_list,
-        reads_seq_binary,
-        reads_weights,
-        0,
-        output_name,
-    )]
 
+    if n_starts >1:
+        result_list = cavi.multistart_cavi(
+            K,
+            alpha0,
+            alphabet,
+            reference_binary,
+            reference_seq,
+            reads_list,
+            reads_seq_binary,
+            reads_weights,
+            n_starts,
+            output_name,
+        )
+
+    else:
+        result_list = [cavi.run_cavi(
+            K,
+            alpha0,
+            alphabet,
+            reference_binary,
+            reference_seq,
+            reads_list,
+            reads_seq_binary,
+            reads_weights,
+            0,
+            output_name,
+        )]
+    
+    logging.info("len(result_list) " + str(len(result_list)))
     logging.info("reference " + fref_in)
     logging.info("reads " + freads_in)
     logging.info("lenght of sequences " + str(reads_list[0].seq_binary.shape[0]))

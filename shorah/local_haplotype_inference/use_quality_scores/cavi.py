@@ -33,6 +33,7 @@ def multistart_cavi(
     reads_log_error_proba,
     n_starts,
     output_dir,
+    convergence_threshold
 ):
 
     pool = mp.Pool(mp.cpu_count())
@@ -50,6 +51,7 @@ def multistart_cavi(
                 reads_log_error_proba,
                 start,
                 output_dir,
+                convergence_threshold
             ),
             callback=collect_result,
         )

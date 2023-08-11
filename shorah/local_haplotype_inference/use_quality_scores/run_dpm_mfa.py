@@ -53,8 +53,8 @@ def main(
         qualities, reads_seq_binary, len(alphabet)
     )
 
-    result_list = [
-        cavi.run_cavi(
+    if n_starts >1:
+        result_list = cavi.multistart_cavi(
             K,
             alpha0,
             alphabet,
@@ -63,11 +63,27 @@ def main(
             reads_seq_binary,
             reads_weights,
             reads_log_error_proba,
-            0,
+            n_starts,
             output_name,
-            convergence_threshold,
+            convergence_threshold
         )
-    ]
+
+    else:
+        result_list = [
+            cavi.run_cavi(
+                K,
+                alpha0,
+                alphabet,
+                reference_binary,
+                reads_list,
+                reads_seq_binary,
+                reads_weights,
+                reads_log_error_proba,
+                0,
+                output_name,
+                convergence_threshold,
+            )
+        ]
 
     logging.info("reference " + fref_in)
     logging.info("reads " + freads_in)
@@ -80,7 +96,7 @@ def main(
     ]
     # sort list of tuple by ELBO value
     sort_elbo.sort(key=lambda x: x[1], reverse=True)
-
+    
     best_run_idx = sort_elbo[0][0]
     best_run_elbo = sort_elbo[0][1]
     logging.info("Maximal ELBO " + str(best_run_elbo) + "in run " + str(best_run_idx))
