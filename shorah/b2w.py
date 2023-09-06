@@ -4,6 +4,8 @@ from shorah.tiling import TilingStrategy, EquispacedTilingStrategy
 import numpy as np
 import math
 import logging
+from multiprocessing import Process, Pool, cpu_count
+import os
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
@@ -154,7 +156,6 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
         base_pair_distr_in_window = np.zeros((window_length, len(alphabet)), dtype=int)
 
     for read in iter:
-
         if (read.reference_start is None) or (read.reference_end is None):
             continue
         first_aligned_pos = read.reference_start # this is 0-based
@@ -279,12 +280,189 @@ def _run_one_window(samfile, window_start, reference_name, window_length,
     return convert_to_printed_fmt(arr), arr_read_qualities_summary, arr_read_summary, counter, window_length, pos_filter
 
 
+def parallel_run_one_window(
+    reference_filename,
+    minimum_reads,
+    tiling,
+    region_end,
+    idx,
+    window_start,
+    window_length,
+    alignment_file,
+    reference_name,
+    win_min_ext,
+    permitted_reads_per_location,
+    counter,
+    exact_conformance_fix_0_1_basing_in_reads,
+    indel_map,
+    max_ins_at_pos,
+    extended_window_mode,
+    exclude_non_var_pos_threshold
+):
+    """
+    build one window.
+    """
+    reffile = pysam.FastaFile(reference_filename)
+
+    samfile = pysam.AlignmentFile(
+        alignment_file,
+        "r", # auto-detect bam/cram (rc)
+        reference_filename=reference_filename,
+        threads=1
+    )
+
+    reads = open(f"reads_{idx}.fas", "w")
+
+    logging.info(f"Working on window (1-based) @ {window_start+1}")
+
+    (arr, arr_read_qualities_summary, arr_read_summary,
+     counter, control_window_length, pos_filter) = _run_one_window(
+        samfile,
+        window_start - 1, # make 0 based
+        reference_name,
+        window_length,
+        math.floor(win_min_ext * window_length),
+        dict(permitted_reads_per_location), # copys dict ("pass by value")
+        counter,
+        exact_conformance_fix_0_1_basing_in_reads,
+        indel_map,
+        max_ins_at_pos,
+        extended_window_mode,
+        exclude_non_var_pos_threshold
+    )
+
+    logging.debug(f"Window length: {control_window_length}")
+
+    window_end = window_start + window_length - 1
+    file_name = f'w-{reference_name}-{window_start}-{window_end}'
+
+    # TODO solution for backward conformance
+    if len(tiling) > 1:
+        end_extended_by_a_window = region_end + (tiling[1][0]-tiling[0][0])*3
+    else:
+        end_extended_by_a_window = region_end + window_length*3
+
+    for read in arr_read_summary:
+        if idx == len(tiling) - 1 and read[1] > end_extended_by_a_window:
+            continue
+        # TODO reads.fas not FASTA conform, +-0/1 mixed
+        # TODO global end does not really make sense, only for conformance
+        # read name, global start, global end, read start, read end, read
+        reads.write(
+            f'{read[0]}\t{tiling[0][0]-1}\t{end_extended_by_a_window}\t{read[1]}\t{read[2]}\t{read[3]}\n'
+        )
+
+    reads.close()
+
+    if (idx != len(tiling) - 1 # except last
+        and len(arr) > 0) or len(tiling) == 1: # suppress output if window empty
+
+        _write_to_file(arr, file_name + '.reads.fas')
+        if arr_read_qualities_summary is not None:
+            with open(file_name + '.qualities.npy', 'wb') as f:
+                np.save(f, np.asarray(arr_read_qualities_summary, dtype=np.int64), allow_pickle=True)
+
+        ref = reffile.fetch(reference=reference_name, start=window_start-1, end=window_end)
+
+        if extended_window_mode:
+            for file_name_comp, char in [("extended-ref", "X"), ("ref", "-")]:
+                res_ref = _build_one_full_read(
+                    list(ref), list(ref), None, None,
+                    window_start-1, window_end-1,
+                    indel_map, max_ins_at_pos, extended_window_mode, char
+                )[0]
+
+                k = max(0, control_window_length - len(res_ref))
+                res_ref += k * "N"
+                assert_condition = control_window_length == len(res_ref)
+
+                if exclude_non_var_pos_threshold > 0 and file_name_comp == "ref":
+                    _write_to_file([
+                        f'>{reference_name} {window_start}\n' + res_ref
+                    ], file_name + '.envp-full-ref.fas')
+
+                    envp_ref = np.array(list(res_ref))
+                    envp_ref[~pos_filter] = "="
+                    _write_to_file([
+                        f'>{reference_name} {window_start}\n' + "".join(envp_ref)
+                    ], file_name + '.envp-ref.fas')
+
+                    reduced_ref = np.array(list(res_ref))[pos_filter]
+                    res_ref = "".join(reduced_ref)
+                    assert_condition = (control_window_length ==
+                                        len(reduced_ref) + len(pos_filter) - pos_filter.sum())
+
+                _write_to_file([
+                    f'>{reference_name} {window_start}\n' + res_ref
+                ], f'{file_name}.{file_name_comp}.fas')
+
+                assert assert_condition, (
+                    f"""
+                        Reference ({file_name_comp}) does not have same length as the window.
+                        Location: {file_name}
+                        Ref: {len(res_ref)}
+                        Win: {control_window_length}
+                    """
+                )
+
+        else:
+            k = max(0, control_window_length - len(ref))
+            ref += k * "N"
+
+            if exclude_non_var_pos_threshold > 0:
+                full_file_name = file_name + '.envp-full-ref.fas'
+            else:
+                full_file_name = file_name + '.ref.fas'
+
+            _write_to_file([
+                f'>{reference_name} {window_start}\n' + ref
+            ], full_file_name)
+
+            assert control_window_length == len(ref), (
+                f"""
+                    Reference does not have same length as the window.
+                    Location: {file_name}
+                    Ref: {len(ref)}
+                    Win: {control_window_length}
+                """
+            )
+
+            if exclude_non_var_pos_threshold > 0:
+                envp_ref = np.array(list(ref))
+                envp_ref[~pos_filter] = "="
+                _write_to_file([
+                    f'>{reference_name} {window_start}\n' + "".join(envp_ref)
+                ], file_name + '.envp-ref.fas')
+                reduced_ref = np.array(list(ref))[pos_filter]
+                _write_to_file([
+                    f'>{reference_name} {window_start}\n' + "".join(reduced_ref)
+                ], file_name + '.ref.fas')
+
+                assert (control_window_length == len(envp_ref) and
+                        control_window_length == len(reduced_ref) + len(pos_filter) - pos_filter.sum()), (
+                    f"""
+                        Reference does not have same length as the window.
+                        Location: {file_name}
+                        Envp Ref: {len(envp_ref)}
+                        Ref: {len(reduced_ref)}
+                        Win: {control_window_length}
+                    """
+                )
+
+        if len(arr) > minimum_reads:
+            line = (
+                f'{file_name}.reads.fas\t{reference_name}\t{window_start}\t'
+                f'{window_end}\t{len(arr)}'
+            )
+            _write_to_file([line], f"coverage_{idx}.txt")
+
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     win_min_ext: float, maximum_reads: int, minimum_reads: int,
     reference_filename: str,
     exact_conformance_fix_0_1_basing_in_reads: Optional[bool] = False,
     extended_window_mode: Optional[bool] = False,
-    exclude_non_var_pos_threshold: Optional[float] = -1) -> None:
+    exclude_non_var_pos_threshold: Optional[float] = -1,
+    maxthreads: Optional[int] = 1) -> None:
     """Summarizes reads aligned to reference into windows.
     Three products are created:
     #. Multiple FASTA files (one for each window position)
@@ -314,6 +492,10 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
             positions are excluded. Set to -1 if no position should be excluded
             (the default).
     """
+    max_proc = min(max(cpu_count() - 1, 1), maxthreads)
+    logging.info('CPU(s) count %u,  will run %u build_windows', cpu_count(), max_proc)
+
+
     assert 0 <= win_min_ext <= 1
     assert (0 <= exclude_non_var_pos_threshold <= 1 or
             exclude_non_var_pos_threshold == -1)
@@ -323,12 +505,9 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         alignment_file,
         "r", # auto-detect bam/cram (rc)
         reference_filename=reference_filename,
-        threads=1
+        threads=max_proc #1
     )
-    reffile = pysam.FastaFile(reference_filename)
-
-    cov_arr = []
-    reads = open("reads.fas", "w")
+    #reffile = pysam.FastaFile(reference_filename) --> we need to read it in each child process
     counter = 0
     reference_name = tiling_strategy.get_reference_name()
     tiling = tiling_strategy.get_window_tilings()
@@ -340,151 +519,56 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         maximum_reads
     )
 
+    all_processes = []
     for idx, (window_start, window_length) in enumerate(tiling):
-        logging.info(f"Working on window (1-based) @ {window_start+1}")
-        (arr, arr_read_qualities_summary, arr_read_summary,
-         counter, control_window_length, pos_filter) = _run_one_window(
-            samfile,
-            window_start - 1, # make 0 based
-            reference_name,
-            window_length,
-            math.floor(win_min_ext * window_length),
-            dict(permitted_reads_per_location), # copys dict ("pass by value")
-            counter,
-            exact_conformance_fix_0_1_basing_in_reads,
-            indel_map,
-            max_ins_at_pos,
-            extended_window_mode,
-            exclude_non_var_pos_threshold
-        )
-        logging.debug(f"Window length: {control_window_length}")
-
-        window_end = window_start + window_length - 1
-        file_name = f'w-{reference_name}-{window_start}-{window_end}'
-
-        # TODO solution for backward conformance
-        if len(tiling) > 1:
-            end_extended_by_a_window = region_end + (tiling[1][0]-tiling[0][0])*3
-        else:
-            end_extended_by_a_window = region_end + window_length*3
-
-        for read in arr_read_summary:
-            if idx == len(tiling) - 1 and read[1] > end_extended_by_a_window:
-                continue
-            # TODO reads.fas not FASTA conform, +-0/1 mixed
-            # TODO global end does not really make sense, only for conformance
-            # read name, global start, global end, read start, read end, read
-            reads.write(
-                f'{read[0]}\t{tiling[0][0]-1}\t{end_extended_by_a_window}\t{read[1]}\t{read[2]}\t{read[3]}\n'
+        p = Process(
+            target=parallel_run_one_window,
+            args=(
+                reference_filename,
+                minimum_reads,
+                tiling,
+                region_end,
+                idx,
+                window_start,
+                window_length,
+                alignment_file,
+                reference_name,
+                win_min_ext,
+                permitted_reads_per_location,
+                counter,
+                exact_conformance_fix_0_1_basing_in_reads,
+                indel_map,
+                max_ins_at_pos,
+                extended_window_mode,
+                exclude_non_var_pos_threshold,
+                )
             )
+        p.start()
+        all_processes.append(p)
 
-        if (idx != len(tiling) - 1 # except last
-            and len(arr) > 0) or len(tiling) == 1: # suppress output if window empty
-
-            _write_to_file(arr, file_name + '.reads.fas')
-            if arr_read_qualities_summary is not None:
-                with open(file_name + '.qualities.npy', 'wb') as f:
-                    np.save(f, np.asarray(arr_read_qualities_summary, dtype=np.int64), allow_pickle=True)
-
-            ref = reffile.fetch(reference=reference_name, start=window_start-1, end=window_end)
-
-            if extended_window_mode:
-                for file_name_comp, char in [("extended-ref", "X"), ("ref", "-")]:
-                    res_ref = _build_one_full_read(
-                        list(ref), list(ref), None, None,
-                        window_start-1, window_end-1,
-                        indel_map, max_ins_at_pos, extended_window_mode, char
-                    )[0]
-
-                    k = max(0, control_window_length - len(res_ref))
-                    res_ref += k * "N"
-                    assert_condition = control_window_length == len(res_ref)
-
-                    if exclude_non_var_pos_threshold > 0 and file_name_comp == "ref":
-                        _write_to_file([
-                            f'>{reference_name} {window_start}\n' + res_ref
-                        ], file_name + '.envp-full-ref.fas')
-
-                        envp_ref = np.array(list(res_ref))
-                        envp_ref[~pos_filter] = "="
-                        _write_to_file([
-                            f'>{reference_name} {window_start}\n' + "".join(envp_ref)
-                        ], file_name + '.envp-ref.fas')
-
-                        reduced_ref = np.array(list(res_ref))[pos_filter]
-                        res_ref = "".join(reduced_ref)
-                        assert_condition = (control_window_length ==
-                                            len(reduced_ref) + len(pos_filter) - pos_filter.sum())
-
-                    _write_to_file([
-                        f'>{reference_name} {window_start}\n' + res_ref
-                    ], f'{file_name}.{file_name_comp}.fas')
-
-                    assert assert_condition, (
-                        f"""
-                            Reference ({file_name_comp}) does not have same length as the window.
-                            Location: {file_name}
-                            Ref: {len(res_ref)}
-                            Win: {control_window_length}
-                        """
-                    )
-
-            else:
-                k = max(0, control_window_length - len(ref))
-                ref += k * "N"
-
-                if exclude_non_var_pos_threshold > 0:
-                    full_file_name = file_name + '.envp-full-ref.fas'
-                else:
-                    full_file_name = file_name + '.ref.fas'
-
-                _write_to_file([
-                    f'>{reference_name} {window_start}\n' + ref
-                ], full_file_name)
-
-                assert control_window_length == len(ref), (
-                    f"""
-                        Reference does not have same length as the window.
-                        Location: {file_name}
-                        Ref: {len(ref)}
-                        Win: {control_window_length}
-                    """
-                )
-
-                if exclude_non_var_pos_threshold > 0:
-                    envp_ref = np.array(list(ref))
-                    envp_ref[~pos_filter] = "="
-                    _write_to_file([
-                        f'>{reference_name} {window_start}\n' + "".join(envp_ref)
-                    ], file_name + '.envp-ref.fas')
-                    reduced_ref = np.array(list(ref))[pos_filter]
-                    _write_to_file([
-                        f'>{reference_name} {window_start}\n' + "".join(reduced_ref)
-                    ], file_name + '.ref.fas')
-
-                    assert (control_window_length == len(envp_ref) and
-                            control_window_length == len(reduced_ref) + len(pos_filter) - pos_filter.sum()), (
-                        f"""
-                            Reference does not have same length as the window.
-                            Location: {file_name}
-                            Envp Ref: {len(envp_ref)}
-                            Ref: {len(reduced_ref)}
-                            Win: {control_window_length}
-                        """
-                    )
-
-            if len(arr) > minimum_reads:
-                line = (
-                    f'{file_name}.reads.fas\t{reference_name}\t{window_start}\t'
-                    f'{window_end}\t{len(arr)}'
-                )
-                cov_arr.append(line)
+    for p in all_processes:
+      p.join()
+    print("here after join")
 
     samfile.close()
-    reads.close()
 
-    _write_to_file(cov_arr, "coverage.txt")
+    with open('reads.fas', 'w') as output_file:
+        for file_path in [f"reads_{idx}.fas" for idx in range(len(tiling))]:
+            with open(file_path, 'r') as input_file:
+                for line in input_file:
+                    output_file.write(line)
+            os.remove(file_path)
 
+    cov_arr = []
+    with open("coverage.txt", 'w') as output_file:
+        for file_path in [f"coverage_{idx}.txt" for idx in range(len(tiling))]:
+            try:
+                with open(file_path, 'r') as input_file:
+                    for line in input_file:
+                        output_file.write(line)
+                os.remove(file_path)
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     import argparse
