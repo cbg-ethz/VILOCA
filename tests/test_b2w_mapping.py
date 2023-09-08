@@ -326,11 +326,19 @@ def test_run_one_window(mArr, spec, window_length, window_start, extended_window
     mock_dict = mocker.MagicMock()
     mock_dict.__getitem__.return_value = 42
 
+    # added by Lara
+    original_window_length = window_length
+    control_window_length = window_length
+    for pos, val in max_ins_at_pos.items():
+        if window_start <= pos < window_start + original_window_length:
+            control_window_length += val
+
     arr, _, _, _, _, _ = b2w._run_one_window(
         mock_samfile,
         window_start,
         "HXB2-does-not-matter",
         window_length,
+        control_window_length,
         0,
         mock_dict,
         0,
