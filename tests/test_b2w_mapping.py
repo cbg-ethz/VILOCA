@@ -329,7 +329,7 @@ def test_run_one_window(mArr, spec, window_length, window_start, extended_window
     # added by Lara
     original_window_length = window_length
     control_window_length = window_length
-    for pos, val in max_ins_at_pos.items():
+    for pos, val in max_indel_at_pos.items():
         if window_start <= pos < window_start + original_window_length:
             control_window_length += val
 
