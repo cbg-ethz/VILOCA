@@ -333,9 +333,9 @@ def test_run_one_window(mArr, spec, window_length, window_start, extended_window
         if window_start <= pos < window_start + original_window_length:
             control_window_length += val
 
-    arr, _, _, _, _, _ = b2w._run_one_window(
+    arr, _, _, _, = b2w._run_one_window(
         mock_samfile,
-        window_start,
+        window_start, # 0 based
         "HXB2-does-not-matter",
         window_length,
         control_window_length,
