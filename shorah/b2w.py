@@ -6,6 +6,7 @@ import math
 import logging
 from multiprocessing import Process, Pool, cpu_count
 import os
+import hashlib
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
@@ -40,7 +41,8 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
                 indel_map.add((
                     pileupread.alignment.query_name, # TODO is unique?
                     pileupread.alignment.reference_start, # TODO is unique?
-                    hash(pileupread.alignment.cigarstring), # TODO is unique?
+                     hashlib.sha1(pileupread.alignment.cigarstring.encode()).hexdigest(),
+                    #hash(pileupread.alignment.cigarstring), # TODO is unique?
                     pileupcolumn.reference_pos,
                     pileupread.indel,
                     pileupread.is_del
@@ -69,6 +71,12 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
     change_in_reference_space_ins = 0
 
     for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
+        #, "89.6-2108", "89.6-4066", "89.6-2922"
+        if (read_query_name in ["NL43-2382"]) & (name ==read_query_name) & (start==2357):
+            print("name, start, cigar_hash, ref_pos, indel_len, is_del", name, start, cigar_hash, ref_pos, indel_len, is_del)
+            print("full_read_cigar_hash", full_read_cigar_hash, "cigar_hash", cigar_hash)
+            print("first_aligned_pos", first_aligned_pos, "start", start)
+            #print("extended_window_mode", extended_window_mode)
 
         if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
             if indel_len > 0 and is_del == 1:
@@ -195,8 +203,13 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
         full_read, full_qualities = _build_one_full_read(full_read, full_qualities,
-            read.query_name, hash(read.cigarstring), first_aligned_pos, last_aligned_pos,
+            read.query_name, hashlib.sha1(read.cigarstring.encode()).hexdigest(), first_aligned_pos, last_aligned_pos,
             indel_map, max_ins_at_pos, extended_window_mode, "-")
+
+        #if  (read.query_name == "NL43-1884"):
+        #    print("oooooooooooooooooooooooooo")
+        #    print(read.query_name, hash(read.cigarstring), first_aligned_pos, last_aligned_pos,
+        #    indel_map, max_ins_at_pos, extended_window_mode)
 
         if (first_aligned_pos + minimum_overlap < window_start + 1 + window_length
                 and last_aligned_pos >= window_start + minimum_overlap - 2 # TODO justify 2
@@ -238,12 +251,16 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
                 cut_out_read = (-start_cut_out + num_inserts_left_of_read) * "N" + cut_out_read
                 if full_qualities is not None:
                     cut_out_qualities = (-start_cut_out + num_inserts_left_of_read) * [2] + cut_out_qualities
-            if len(cut_out_read) != window_length:
-                breakpoint()
+
+            #if (read.query_name in ["NL43-2382", "89.6-2108", "89.6-4066", "89.6-2922"]):
+            #    print(
+            #        "read unequal window size",
+            #        read.query_name, first_aligned_pos, cut_out_read, window_start, window_length, read.reference_end, len(cut_out_read)
+            #    )
 
             assert len(cut_out_read) == window_length, (
                 "read unequal window size",
-                read.query_name, first_aligned_pos, cut_out_read, window_start, window_length, read.reference_end
+                read.query_name, first_aligned_pos, cut_out_read, window_start, window_length, read.reference_end, len(cut_out_read)
             )
             if cut_out_qualities is not None:
                 assert len(cut_out_qualities) == window_length, (
@@ -556,6 +573,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     )
 
     tiling = update_tiling(tiling, extended_window_mode, max_ins_at_pos)
+    print("indel_map", indel_map)
+
 
     # generate counter for each window
     # counter = window_start - 1 + control_window_length, # make 0 based
@@ -590,10 +609,10 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         all_processes.append(p)
 
     for p in all_processes:
-      p.run()
+      p.start()
 
-    #for p in all_processes:
-    #  p.join()
+    for p in all_processes:
+      p.join()
 
     samfile.close()
 
