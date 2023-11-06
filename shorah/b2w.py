@@ -71,12 +71,6 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
     change_in_reference_space_ins = 0
 
     for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
-        #, "89.6-2108", "89.6-4066", "89.6-2922"
-        if (read_query_name in ["NL43-2382"]) & (name ==read_query_name) & (start==2357):
-            print("name, start, cigar_hash, ref_pos, indel_len, is_del", name, start, cigar_hash, ref_pos, indel_len, is_del)
-            print("full_read_cigar_hash", full_read_cigar_hash, "cigar_hash", cigar_hash)
-            print("first_aligned_pos", first_aligned_pos, "start", start)
-            #print("extended_window_mode", extended_window_mode)
 
         if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
             if indel_len > 0 and is_del == 1:
@@ -197,7 +191,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
                 if ct_idx != 0 and ct_idx != len(read.cigartuples)-1:
                     raise ValueError("Soft clipping only possible on the edges of a read.")
             elif ct[0] == 5: # 5 = BAM_CHARD_CLIP
-                #logging.debug(f"[b2w] Hard clipping detected in {read.query_name}")
+                #logging.debug(f"[b2w] Hard clipping detected in {read.query_name}") # commented out because this happens too often
                 pass
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
@@ -206,10 +200,6 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
             read.query_name, hashlib.sha1(read.cigarstring.encode()).hexdigest(), first_aligned_pos, last_aligned_pos,
             indel_map, max_ins_at_pos, extended_window_mode, "-")
 
-        #if  (read.query_name == "NL43-1884"):
-        #    print("oooooooooooooooooooooooooo")
-        #    print(read.query_name, hash(read.cigarstring), first_aligned_pos, last_aligned_pos,
-        #    indel_map, max_ins_at_pos, extended_window_mode)
 
         if (first_aligned_pos + minimum_overlap < window_start + 1 + window_length
                 and last_aligned_pos >= window_start + minimum_overlap - 2 # TODO justify 2
@@ -252,11 +242,6 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
                 if full_qualities is not None:
                     cut_out_qualities = (-start_cut_out + num_inserts_left_of_read) * [2] + cut_out_qualities
 
-            #if (read.query_name in ["NL43-2382", "89.6-2108", "89.6-4066", "89.6-2922"]):
-            #    print(
-            #        "read unequal window size",
-            #        read.query_name, first_aligned_pos, cut_out_read, window_start, window_length, read.reference_end, len(cut_out_read)
-            #    )
 
             assert len(cut_out_read) == window_length, (
                 "read unequal window size",
@@ -573,8 +558,6 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     )
 
     tiling = update_tiling(tiling, extended_window_mode, max_ins_at_pos)
-    print("indel_map", indel_map)
-
 
     # generate counter for each window
     # counter = window_start - 1 + control_window_length, # make 0 based
