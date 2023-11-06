@@ -2,6 +2,7 @@ from array import array
 import pytest
 from cigar import Cigar
 from shorah import b2w
+import hashlib
 
 class MockAlignedSegment:
     def __init__(self, query_name: str, reference_start: int, query_sequence: str, cigarstring: str):
@@ -35,10 +36,10 @@ class MockAlignedSegment:
         cnt = self.reference_start
         for i in self.cigartuples:
             if i[0] == 1: # insert TODO Justify -1
-                indels_map.append((self.query_name, self.reference_start, hash(self.cigarstring), cnt-1, i[1], 0)) # cnt-1
+                indels_map.append((self.query_name, self.reference_start, hashlib.sha1(self.cigarstring.encode()).hexdigest(), cnt-1, i[1], 0)) # cnt-1
             elif i[0] == 2: # del
                 for k in range(i[1]):
-                    indels_map.append((self.query_name, self.reference_start, hash(self.cigarstring), cnt+k, 0, 1))
+                    indels_map.append((self.query_name, self.reference_start, hashlib.sha1(self.cigarstring.encode()).hexdigest(), cnt+k, 0, 1))
                 cnt += i[1]
             else:
                 cnt += i[1]
@@ -334,7 +335,7 @@ def test_run_one_window(mArr, spec, window_length, window_start, extended_window
         for pos, val in max_indel_at_pos.items():
             if window_start <= pos < window_start + original_window_length:
                 control_window_length += val
-        
+
 
     arr, _, _, _, = b2w._run_one_window(
         mock_samfile,
