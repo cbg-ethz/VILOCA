@@ -4,7 +4,7 @@ from shorah.tiling import TilingStrategy, EquispacedTilingStrategy
 import numpy as np
 import math
 import logging
-from multiprocessing import Process, Pool, cpu_count
+from multiprocessing import Process, cpu_count
 import os
 import hashlib
 
