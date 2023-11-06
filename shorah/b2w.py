@@ -41,7 +41,7 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
                 indel_map.add((
                     pileupread.alignment.query_name, # TODO is unique?
                     pileupread.alignment.reference_start, # TODO is unique?
-                     hashlib.sha1(pileupread.alignment.cigarstring.encode()).hexdigest(),
+                    hashlib.sha1(pileupread.alignment.cigarstring.encode()).hexdigest(),
                     #hash(pileupread.alignment.cigarstring), # TODO is unique?
                     pileupcolumn.reference_pos,
                     pileupread.indel,
