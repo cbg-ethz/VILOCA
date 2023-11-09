@@ -473,25 +473,27 @@ def parallel_run_one_window(
 def update_tiling(tiling, extended_window_mode, max_ins_at_pos):
     """
     input tiling:
+    window_start is 1-based
+    max_ins_at_pos is 0-based
 
     return: tiling = [
-            (window_start, original_window_length, control_window_length, counter)
+            (window_start, original_window_length, control_window_length)
             for each window
             ]
     """
-    update_tiling = []
+    updated_tiling = []
 
     for idx, (window_start, window_length) in enumerate(tiling):
         original_window_length = window_length
         if extended_window_mode:
             for pos, val in max_ins_at_pos.items():
-                if window_start <= pos < window_start + original_window_length:
+                if window_start - 1 <= pos < window_start - 1 + original_window_length:
                     window_length += val
-            update_tiling.append((window_start,original_window_length, window_length))
+            updated_tiling.append((window_start,original_window_length, window_length))
         else:
-            update_tiling.append((window_start,original_window_length, window_length))
+            updated_tiling.append((window_start,original_window_length, window_length))
 
-    return update_tiling
+    return updated_tiling
 
 
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
@@ -558,10 +560,10 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     )
 
     tiling = update_tiling(tiling, extended_window_mode, max_ins_at_pos)
-
+    
     # generate counter for each window
     # counter = window_start - 1 + control_window_length, # make 0 based
-    counter_list = [0] + [window_start- 1 + control_window_length for (window_start, window_length, control_window_length) in tiling]
+    counter_list = [0] + [window_start - 1 + control_window_length for (window_start, window_length, control_window_length) in tiling]
 
     all_processes = []
     for idx, (window_start, window_length, control_window_length) in enumerate(tiling):
@@ -574,17 +576,17 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 tiling,
                 region_end,
                 idx,
-                window_start,
+                window_start, # 1-based
                 window_length,
                 control_window_length,
                 alignment_file,
                 reference_name,
                 win_min_ext,
                 permitted_reads_per_location,
-                counter,
+                counter, # 0-based
                 exact_conformance_fix_0_1_basing_in_reads,
                 indel_map,
-                max_ins_at_pos,
+                max_ins_at_pos, # 0-based
                 extended_window_mode,
                 exclude_non_var_pos_threshold,
                 )
