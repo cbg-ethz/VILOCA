@@ -12,6 +12,10 @@ from . import preparation
 from . import analyze_results
 from . import cavi
 
+logging.basicConfig(
+    filename="viloca.log", encoding="utf-8", level=logging.INFO
+)
+
 
 # class NumpyEncoder(json.JSONEncoder):
 #     def default(self, obj):

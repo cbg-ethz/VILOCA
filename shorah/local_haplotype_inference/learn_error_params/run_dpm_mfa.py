@@ -10,6 +10,10 @@ from . import preparation
 from . import analyze_results
 from . import cavi
 
+logging.basicConfig(
+    filename="viloca.log", encoding="utf-8", level=logging.INFO
+)
+
 
 def gzip_file(f_name):
     """Gzip a file and return the name of the gzipped, removing the original"""
