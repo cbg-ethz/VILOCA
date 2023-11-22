@@ -12,10 +12,6 @@ from . import preparation
 from . import analyze_results
 from . import cavi
 
-logging.basicConfig(
-    filename="shorah_inference.log", encoding="utf-8", level=logging.INFO
-)
-
 
 # class NumpyEncoder(json.JSONEncoder):
 #     def default(self, obj):
@@ -96,7 +92,7 @@ def main(
     ]
     # sort list of tuple by ELBO value
     sort_elbo.sort(key=lambda x: x[1], reverse=True)
-    
+
     best_run_idx = sort_elbo[0][0]
     best_run_elbo = sort_elbo[0][1]
     logging.info("Maximal ELBO " + str(best_run_elbo) + "in run " + str(best_run_idx))

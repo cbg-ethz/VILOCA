@@ -10,10 +10,6 @@ from . import preparation
 from . import analyze_results
 from . import cavi
 
-logging.basicConfig(
-    filename="shorah_inference.log", encoding="utf-8", level=logging.INFO
-)
-
 
 def gzip_file(f_name):
     """Gzip a file and return the name of the gzipped, removing the original"""
@@ -69,7 +65,7 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
             0,
             output_name,
         )]
-    
+
     logging.info("len(result_list) " + str(len(result_list)))
     logging.info("reference " + fref_in)
     logging.info("reads " + freads_in)
