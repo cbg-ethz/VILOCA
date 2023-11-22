@@ -89,13 +89,13 @@ def snv_run(args):
 def main():
     """Parse command line, run default functions."""
         # logging configuration
-    logging.basicConfig(filename='shorah.log', level=logging.DEBUG,
+    logging.basicConfig(filename='viloca.log', level=logging.DEBUG,
                         format='%(levelname)s %(asctime)s %(filename)s: %(funcName)s() %(lineno)d: \t%(message)s',
                         datefmt='%Y/%m/%d %H:%M:%S',
                         force=True)
 
     logging.info(' '.join(sys.argv))
-    logging.info('shorah version:%s', __version__)
+    logging.info('viloca version:%s', __version__)
 
     # parse command line
     # create the top-level parser
@@ -151,7 +151,7 @@ def main():
 
     parser = argparse.ArgumentParser(
         usage='%(prog)s <subcommand> [options]',
-        epilog="Run `shorah subcommand -h` for more help",
+        epilog="Run `viloca subcommand -h` for more help",
         parents=[version_parser])
 
     subparsers = parser.add_subparsers(
@@ -159,7 +159,7 @@ def main():
 
     # create the parser for command "shotgun"
     parser_shotgun = subparsers.add_parser(
-        'shotgun', help='run local analysis in shotgun mode', parents=[version_parser, parent_parser, coverage_parser])
+        'run', help='run viloca', parents=[version_parser, parent_parser, coverage_parser])
 
     parser_shotgun.add_argument("-w", "--windowsize", metavar='INT',
                                 required=False, type=int, dest="w", default=201, help="window size")
