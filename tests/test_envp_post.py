@@ -1,5 +1,5 @@
 from unittest.mock import patch, mock_open
-from shorah import envp_post
+from viloca import envp_post
 
 DEFAULT_MOCK_DATA = "default mock data"
 
