@@ -1,6 +1,6 @@
 import pysam
 from typing import Optional
-from shorah.tiling import TilingStrategy, EquispacedTilingStrategy
+from viloca.tiling import TilingStrategy, EquispacedTilingStrategy
 import numpy as np
 import math
 import logging
@@ -560,7 +560,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     )
 
     tiling = update_tiling(tiling, extended_window_mode, max_ins_at_pos)
-    
+
     # generate counter for each window
     # counter = window_start - 1 + control_window_length, # make 0 based
     counter_list = [0] + [window_start - 1 + control_window_length for (window_start, window_length, control_window_length) in tiling]

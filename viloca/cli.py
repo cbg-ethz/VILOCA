@@ -39,12 +39,12 @@ import sys
 import argparse
 import logging
 import logging.handlers
-from shorah import shotgun, shorah_snv
+from viloca import shotgun, shorah_snv
 
 # FIXME can we remove this? @Ivan -> version tag (get through poetry in the future)
 use_pkg_resources = False
 all_dirs = os.path.abspath(__file__).split(os.sep)
-base_dir = os.sep.join(all_dirs[:-all_dirs[::-1].index('shorah')])
+base_dir = os.sep.join(all_dirs[:-all_dirs[::-1].index('viloca')])
 version_fname = os.path.join(base_dir, '.version')
 if os.path.exists(version_fname):
     # probably installed using Autotools, e.g: bioconda package - the current recommended way
@@ -54,7 +54,7 @@ else:
     # probably installed using setup.py
     from pkg_resources import (get_distribution, DistributionNotFound)
     try:
-        __version__ = get_distribution('shorah').version
+        __version__ = get_distribution('viloca').version
     except DistributionNotFound:
         __version__ = 'unknown'
         print("cannot find version", file=sys.stderr)
@@ -66,8 +66,8 @@ parent_dir = os.path.join(base_dir, 'src')
 if __name__ == '__main__':
     if __package__ is None:
         os.sys.path.insert(1, parent_dir)
-        mod = __import__('shorah')
-        sys.modules["shorah"] = mod
+        mod = __import__('viloca')
+        sys.modules["viloca"] = mod
         #from common import hcv_map, hiv_map, org_dict, wobbles
         #from stats import (genome_coverage, start_stop_coverage)
 # else:
