@@ -469,7 +469,8 @@ def main(args):
             cov_thrd,
             in_fasta,
             extended_window_mode=extended_window_mode,
-            exclude_non_var_pos_threshold=exclude_non_var_pos_threshold
+            exclude_non_var_pos_threshold=exclude_non_var_pos_threshold,
+            maxthreads=maxthreads
         )
         logging.info('finished b2w')
 

@@ -1,5 +1,5 @@
 from unittest.mock import patch, mock_open
-from shorah import pooled_post
+from viloca import pooled_post
 import numpy as np
 
 DEFAULT_MOCK_DATA = "default mock data"

@@ -2,7 +2,7 @@ import pytest
 import filecmp
 import os
 import glob
-from shorah import b2w, tiling
+from viloca import b2w, tiling
 import math
 import libshorah
 

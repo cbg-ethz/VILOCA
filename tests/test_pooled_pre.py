@@ -1,6 +1,6 @@
 import pysam
 import os
-from shorah import pooled_pre
+from viloca import pooled_pre
 
 def test__annotate_alignment_file():
     out = "out.bam"

@@ -11,7 +11,7 @@ from . import analyze_results
 from . import cavi
 
 logging.basicConfig(
-    filename="shorah_inference.log", encoding="utf-8", level=logging.INFO
+    filename="viloca_inference.log", encoding="utf-8", level=logging.INFO
 )
 
 
@@ -69,7 +69,7 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
             0,
             output_name,
         )]
-    
+
     logging.info("len(result_list) " + str(len(result_list)))
     logging.info("reference " + fref_in)
     logging.info("reads " + freads_in)

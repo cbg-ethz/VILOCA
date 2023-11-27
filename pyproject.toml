@@ -1,16 +1,16 @@
 [tool.poetry]
-name = "ShoRAH"
+name = "VILOCA"
 version = "0.1.0"
 description = "SHOrt Reads Assembly into Haplotypes"
 license = "GPL-3.0-only"
-authors = ["Benjamin Langer <blanger@student.ethz.ch>"]
+authors = ["Benjamin Langer <blanger@student.ethz.ch>, Lara Fuhrmann <lara.fuhrmann@bsse.ethz.ch>"]
 build = "build.py"
 packages = [
-    { include = "shorah" }
+    { include = "viloca" }
 ]
 
 [tool.poetry.scripts]
-shorah = 'shorah.cli:main'
+viloca = 'viloca.cli:main'
 
 [tool.poetry.dependencies]
 python = ">=3.9.9,<3.11"
