@@ -1,9 +1,5 @@
 VILOCA: VIral LOcal haplotype reconstruction and mutation CAlling for short and long read data
 ===============
-[![Build Status](https://travis-ci.org/cbg-ethz/shorah.svg?branch=master)](https://travis-ci.org/cbg-ethz/viloca)
-[![Bioconda package](https://img.shields.io/conda/dn/bioconda/shorah.svg?label=Bioconda)](https://bioconda.github.io/recipes/viloca/README.html)
-[![Docker container](https://quay.io/repository/biocontainers/shorah/status)](https://quay.io/repository/biocontainers/viloca)
-
 
 VILOCA is an open source project for the analysis of next generation sequencing
 data. It is designed to analyse genetically heterogeneous samples. Its tools
@@ -23,7 +19,11 @@ pip install git+https://github.com/cbg-ethz/VILOCA@master
 ```
 
 ### Example
-To test your installation, we recommend running the program on `tests/data_1`.
+To test your installation run VILOCA `tests/data_1`:
+```
+viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode use_quality_scores
+```
+
 
 If the sequencing amplicon strategy is known, we recommend using the amplicon-mode of the program, which takes as input the `<smth>.insert.bed` - file:
 `viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode use_quality_scores`
