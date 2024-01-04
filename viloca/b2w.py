@@ -72,10 +72,10 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
 
     for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
         #, "89.6-2108", "89.6-4066", "89.6-2922"
-        if (read_query_name in ["NL43-2382"]) & (name ==read_query_name) & (start==2357):
-            print("name, start, cigar_hash, ref_pos, indel_len, is_del", name, start, cigar_hash, ref_pos, indel_len, is_del)
-            print("full_read_cigar_hash", full_read_cigar_hash, "cigar_hash", cigar_hash)
-            print("first_aligned_pos", first_aligned_pos, "start", start)
+        #if (read_query_name in ["NL43-2382"]) & (name ==read_query_name) & (start==2357):
+            #print("name, start, cigar_hash, ref_pos, indel_len, is_del", name, start, cigar_hash, ref_pos, indel_len, is_del)
+            #print("full_read_cigar_hash", full_read_cigar_hash, "cigar_hash", cigar_hash)
+            #print("first_aligned_pos", first_aligned_pos, "start", start)
             #print("extended_window_mode", extended_window_mode)
 
         if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
@@ -772,7 +772,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     )
 
     tiling = update_tiling(tiling, extended_window_mode, max_ins_at_pos)
-    print("indel_map", indel_map)
+    #print("indel_map", indel_map)
 
 
     # generate counter for each window
