@@ -1,4 +1,4 @@
-from shorah import tiling
+from viloca import tiling
 import pytest
 
 def test_equispaced():

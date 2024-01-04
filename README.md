@@ -1,9 +1,5 @@
 VILOCA: VIral LOcal haplotype reconstruction and mutation CAlling for short and long read data
 ===============
-[![Build Status](https://travis-ci.org/cbg-ethz/shorah.svg?branch=master)](https://travis-ci.org/cbg-ethz/shorah)
-[![Bioconda package](https://img.shields.io/conda/dn/bioconda/shorah.svg?label=Bioconda)](https://bioconda.github.io/recipes/shorah/README.html)
-[![Docker container](https://quay.io/repository/biocontainers/shorah/status)](https://quay.io/repository/biocontainers/shorah)
-
 
 VILOCA is an open source project for the analysis of next generation sequencing
 data. It is designed to analyse genetically heterogeneous samples. Its tools
@@ -17,22 +13,26 @@ genetic variants present in a mixed sample.
 For installation miniconda is recommended: https://docs.conda.io/en/latest/miniconda.html.
 We recommend to install VILOCA in a clean conda environment:
 ```
-conda create --name env_viloca libshorah
+conda create --name env_viloca --channel conda-forge --channel bioconda libshorah
 conda activate env_viloca
-pip install git+https://github.com/LaraFuhrmann/VILOCA@master
+pip install git+https://github.com/cbg-ethz/VILOCA@master
 ```
 
 ### Example
-To test your installation, we recommend running the program on `tests/data_1`.
+To test your installation run VILOCA `tests/data_1`:
+```
+viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode use_quality_scores
+```
+
 
 If the sequencing amplicon strategy is known, we recommend using the amplicon-mode of the program, which takes as input the `<smth>.insert.bed` - file:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode use_quality_scores`
+`viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode use_quality_scores`
 
 If the sequencing quality scores are not trustable, the sequencing error parameters can also be learned:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode learn_error_params`.
+`viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode learn_error_params`.
 
 If there is no information on the sequencing amplicon strategy available, run:
-`shorah shotgun -b test_aln.cram -f test_ref.fasta --mode use_quality_scores`
+`viloca run -b test_aln.cram -f test_ref.fasta --mode use_quality_scores`
 
 ### Parameters
 There are several parameters available:  

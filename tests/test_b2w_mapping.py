@@ -1,7 +1,7 @@
 from array import array
 import pytest
 from cigar import Cigar
-from shorah import b2w
+from viloca import b2w
 import hashlib
 
 class MockAlignedSegment:

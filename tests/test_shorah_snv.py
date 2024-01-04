@@ -1,5 +1,5 @@
 import pytest
-from shorah.shorah_snv import _compare_ref_to_read, SNP_id, SNV
+from viloca.shorah_snv import _compare_ref_to_read, SNP_id, SNV
 
 
 @pytest.mark.parametrize("ref, seq, spec", [
