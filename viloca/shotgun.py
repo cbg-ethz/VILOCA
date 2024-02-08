@@ -514,6 +514,11 @@ def main(args):
 
     for p in all_processes:
         p.join()
+        if p.exitcode != 0:
+            logging.debug("[b2w] A process was killed. Terminating the program.")
+            exit(1)
+
+    logging.debug("[b2w] All processes completed successfully.")
 
     # prepare directories
     for sd_name in ['debug', 'sampling', 'freq', 'support',
