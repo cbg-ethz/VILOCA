@@ -229,7 +229,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
 
             cut_out_read = full_read[s]
             if full_qualities is None:
-                logging.warning("[b2w] No sequencing quality scores provided in alignment file. Run --sampler learn_error_params.")
+                #logging.warning("[b2w] No sequencing quality scores provided in alignment file. Run --sampler learn_error_params.")
                 cut_out_qualities = None
             else:
                 cut_out_qualities = full_qualities[s]
@@ -811,7 +811,12 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
       p.start()
 
     for p in all_processes:
-      p.join()
+        p.join()
+        if p.exitcode != 0:
+            logging.debug("[b2w] A process was killed. Terminating the program.")
+            exit(1)
+
+    logging.debug("[b2w] All processes completed successfully.")
 
     samfile.close()
 
