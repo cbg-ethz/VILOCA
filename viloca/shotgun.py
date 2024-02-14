@@ -515,7 +515,7 @@ def main(args):
     for p in all_processes:
         p.join()
         if p.exitcode != 0:
-            logging.debug("[b2w] A process was killed. Terminating the program.")
+            logging.debug("[shotgun] A process was killed. Terminating the program.")
             exit(1)
 
     logging.debug("[shotgun] All processes completed successfully.")
