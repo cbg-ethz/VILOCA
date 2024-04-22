@@ -529,7 +529,7 @@ def main(args):
         VCF_meta = [
             "##fileformat=VCFv4.2",
             f"##fileDate={date.today():%Y%m%d}",
-            f"##source=ShoRAH_{args.version}",
+            f"##source=VILOCA",
             f"##reference={args.f}",
         ]
         ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
