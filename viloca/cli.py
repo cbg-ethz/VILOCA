@@ -209,8 +209,8 @@ def main():
                                 required=False, default=2, dest="min_windows_coverage",
                                 help="Number of windows that need to cover a mutation to have it called.")
 
-    parser_shotgun.add_argument("--strand_bias_filter", action='store_true', dest="strand_bias_filter",
-                                help="Filter out mutations that do not pass the strand bias filter. This is only recommended for paired-end Illumina reads.")
+    parser_shotgun.add_argument("--NO-strand_bias_filter", action='store_false', dest="strand_bias_filter",
+                                help="Do NOT filter out mutations that do not pass the strand bias filter. The strand bias filter is only recommended for paired-end Illumina reads.")
 
     parser_shotgun.set_defaults(func=shotgun_run)
 
