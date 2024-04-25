@@ -119,7 +119,7 @@ class EquispacedTilingStrategy(TilingStrategy):
         # add one more window at the end
         if self.exact_conformance_overlap_at_boundary == True:
             window_positions.append(window_positions[-1] + self.incr)
-            
+
         return [(i, self.window_length) for i in window_positions]
 
     def get_reference_name(self):
