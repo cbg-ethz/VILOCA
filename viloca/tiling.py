@@ -105,7 +105,7 @@ class EquispacedTilingStrategy(TilingStrategy):
             ))
             while window_positions[-1] + self.window_length >= self.end:
                 del window_positions[-1] # FIXME uncommented to create one single window
-                window_positions.append(self.end - 1 - self.window_length)
+                #window_positions.append(self.end - 1 - self.window_length)
 
         else:
             window_positions = list(range(
@@ -120,7 +120,11 @@ class EquispacedTilingStrategy(TilingStrategy):
         if self.exact_conformance_overlap_at_boundary == True:
             window_positions.append(window_positions[-1] + self.incr)
 
-        return [(i, self.window_length) for i in window_positions]
+        tiling = [(i, self.window_length) for i in window_positions]
+        if tiling[-1][0] + tiling[-1][1] >= self.end:
+            tiling[-1][1] = self.end-1 -tiling[-1][0]
+
+        return tiling
 
     def get_reference_name(self):
         return self.reference_name
