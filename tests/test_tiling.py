@@ -26,7 +26,7 @@ def test_equispaced_use_full_reference_as_region():
 
     assert actual[0][0] == 1
     assert actual[0][1] == 201
-    assert actual[-1][0] == 2748 #2949 #2748 (old number where last windows where excluded)
+    assert actual[-1][0] == 2949 #2748 (old number where last windows where excluded)
     #assert actual[-1][0] + 201 < 3000
 
 
