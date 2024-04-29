@@ -684,30 +684,6 @@ def parallel_run_one_window(
 
 
 
-def update_tiling(tiling, extended_window_mode, max_ins_at_pos):
-    """
-    input tiling:
-
-    return: tiling = [
-            (window_start, original_window_length, control_window_length, counter)
-            for each window
-            ]
-    """
-    update_tiling = []
-
-    for idx, (window_start, window_length) in enumerate(tiling):
-        original_window_length = window_length
-        if extended_window_mode:
-            for pos, val in max_ins_at_pos.items():
-                if window_start <= pos < window_start + original_window_length:
-                    window_length += val
-            update_tiling.append((window_start,original_window_length, window_length))
-        else:
-            update_tiling.append((window_start,original_window_length, window_length))
-
-    return update_tiling
-
-
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     win_min_ext: float, maximum_reads: int, minimum_reads: int,
     reference_filename: str,
