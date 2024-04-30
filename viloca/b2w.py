@@ -157,6 +157,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
     # TODO: window_length
     original_window_length = window_length
     window_length = control_window_length
+    original_minimum_overlap = minimum_overlap
     if extended_window_mode:
         # this is now done intilaly for all windows
         #for pos, val in max_ins_at_pos.items():
@@ -208,7 +209,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
 
 
         if (first_aligned_pos + minimum_overlap < window_start + 1 + window_length
-                and last_aligned_pos >= window_start + minimum_overlap - 2 # TODO justify 2
+                and last_aligned_pos >= window_start + original_minimum_overlap - 2 # TODO justify 2
+                #last_aligned_pos: is in the orginal reference genome space (not in the extended_window_mode-space)
                 and len(full_read) >= minimum_overlap):
 
             num_inserts_right_of_read = 0
