@@ -157,6 +157,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
     # TODO: window_length
     original_window_length = window_length
     window_length = control_window_length
+    original_minimum_overlap = minimum_overlap
     if extended_window_mode:
         # this is now done intilaly for all windows
         #for pos, val in max_ins_at_pos.items():
@@ -208,7 +209,8 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
 
 
         if (first_aligned_pos + minimum_overlap < window_start + 1 + window_length
-                and last_aligned_pos >= window_start + minimum_overlap - 2 # TODO justify 2
+                and last_aligned_pos >= window_start + original_minimum_overlap - 2 # TODO justify 2
+                #last_aligned_pos: is in the orginal reference genome space (not in the extended_window_mode-space)
                 and len(full_read) >= minimum_overlap):
 
             num_inserts_right_of_read = 0
@@ -229,7 +231,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
 
             cut_out_read = full_read[s]
             if full_qualities is None:
-                logging.warning("[b2w] No sequencing quality scores provided in alignment file. Run --sampler learn_error_params.")
+                #logging.warning("[b2w] No sequencing quality scores provided in alignment file. Run --sampler learn_error_params.")
                 cut_out_qualities = None
             else:
                 cut_out_qualities = full_qualities[s]
@@ -684,30 +686,6 @@ def parallel_run_one_window(
 
 
 
-def update_tiling(tiling, extended_window_mode, max_ins_at_pos):
-    """
-    input tiling:
-
-    return: tiling = [
-            (window_start, original_window_length, control_window_length, counter)
-            for each window
-            ]
-    """
-    update_tiling = []
-
-    for idx, (window_start, window_length) in enumerate(tiling):
-        original_window_length = window_length
-        if extended_window_mode:
-            for pos, val in max_ins_at_pos.items():
-                if window_start <= pos < window_start + original_window_length:
-                    window_length += val
-            update_tiling.append((window_start,original_window_length, window_length))
-        else:
-            update_tiling.append((window_start,original_window_length, window_length))
-
-    return update_tiling
-
-
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     win_min_ext: float, maximum_reads: int, minimum_reads: int,
     reference_filename: str,
@@ -811,7 +789,12 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
       p.start()
 
     for p in all_processes:
-      p.join()
+        p.join()
+        if p.exitcode != 0:
+            logging.debug("[b2w] A process was killed. Terminating the program.")
+            exit(1)
+
+    logging.debug("[b2w] All processes completed successfully.")
 
     samfile.close()
 

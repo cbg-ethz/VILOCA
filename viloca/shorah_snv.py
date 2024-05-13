@@ -439,6 +439,7 @@ def main(args):
     min_windows_coverage = args.min_windows_coverage
     working_dir = args.working_dir
     exclude_non_var_pos_threshold = args.exclude_non_var_pos_threshold
+    strand_bias_filter = args.strand_bias_filter
 
     assert os.path.isdir(args.working_dir) or args.working_dir == ""
 
@@ -519,7 +520,9 @@ def main(args):
             writer.writerow(header_row)
             # only print when q >= 5%
             for wl in write_list:
-                if wl[-1] >= 0.05:
+                if (wl[-1] >= 0.05) & (strand_bias_filter==True):
+                    writer.writerow(wl)
+                elif (strand_bias_filter==False):
                     writer.writerow(wl)
 
     max_number_window = int(windows_header_row[-1].split("Pst")[1])
@@ -529,7 +532,7 @@ def main(args):
         VCF_meta = [
             "##fileformat=VCFv4.2",
             f"##fileDate={date.today():%Y%m%d}",
-            f"##source=ShoRAH_{args.version}",
+            f"##source=VILOCA",
             f"##reference={args.f}",
         ]
         ref_m = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(reference, "fasta")])
@@ -581,7 +584,12 @@ def main(args):
                         sum_Freq += 0
 
                 # only print when q >= 5%
-                if (wl[-1] >= 0.05) and (sum_Freq > 0):
+                q = wl[-1]
+                if strand_bias_filter==True:
+                    q = wl[-1]
+                else:
+                    q=1.0
+                if (q >= 0.05) and (sum_Freq > 0):
                     info = (
                         f"Fvar={wl[-6]};Rvar={wl[-5]};Ftot={wl[-4]};"
                         f"Rtot={wl[-3]};Pval={wl[-2]};Qval={wl[-1]}"
