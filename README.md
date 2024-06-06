@@ -21,18 +21,19 @@ pip install git+https://github.com/cbg-ethz/VILOCA@master
 ### Example
 To test your installation run VILOCA `tests/data_1`:
 ```
-viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode use_quality_scores
+viloca run -b test_aln.cram -f test_ref.fasta --mode use_quality_scores
 ```
 
-
+Another example can be found in  `tests/data_6`:
 If the sequencing amplicon strategy is known, we recommend using the amplicon-mode of the program, which takes as input the `<smth>.insert.bed` - file:
-`viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode use_quality_scores`
-
-If the sequencing quality scores are not trustable, the sequencing error parameters can also be learned:
-`viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --mode learn_error_params`.
+`viloca run -f reference.fasta -b reads.shotgun.bam -w 90 --mode use_quality_scores -z scheme.insert.bed`
 
 If there is no information on the sequencing amplicon strategy available, run:
-`viloca run -b test_aln.cram -f test_ref.fasta --mode use_quality_scores`
+`viloca run -f reference.fasta -b reads.shotgun.bam -w 90 --mode use_quality_scores`
+
+If the sequencing quality scores are not trustable, the sequencing error parameters can also be learned:
+`viloca run -f reference.fasta -b reads.shotgun.bam -w 90 --mode learn_error_params`.
+
 
 ### Parameters
 There are several parameters available:  
@@ -70,3 +71,7 @@ This is the same setup as used in the CI at [`.github/workflows/test.yaml`](.git
 ```bash
 poetry run python3 -m cProfile -m shorah shotgun ...
 ```
+
+### Applications
+
+You can find several applications of VILOCA at https://github.com/cbg-ethz/viloca_applications.
