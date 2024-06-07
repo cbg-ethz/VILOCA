@@ -578,30 +578,31 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     all_processes = []
     for idx, (window_start, window_length, control_window_length) in enumerate(tiling):
         counter = counter_list[idx]
-        p = Process(
-            target=parallel_run_one_window,
-            args=(
-                reference_filename,
-                minimum_reads,
-                tiling,
-                region_end,
-                idx,
-                window_start, # 1-based
-                window_length,
-                control_window_length,
-                alignment_file,
-                reference_name,
-                win_min_ext,
-                permitted_reads_per_location,
-                counter, # 0-based
-                exact_conformance_fix_0_1_basing_in_reads,
-                indel_map,
-                max_ins_at_pos, # 0-based
-                extended_window_mode,
-                exclude_non_var_pos_threshold,
+        if not os.path.isfile(f"coverage_{idx}.txt"):
+            p = Process(
+                target=parallel_run_one_window,
+                args=(
+                    reference_filename,
+                    minimum_reads,
+                    tiling,
+                    region_end,
+                    idx,
+                    window_start, # 1-based
+                    window_length,
+                    control_window_length,
+                    alignment_file,
+                    reference_name,
+                    win_min_ext,
+                    permitted_reads_per_location,
+                    counter, # 0-based
+                    exact_conformance_fix_0_1_basing_in_reads,
+                    indel_map,
+                    max_ins_at_pos, # 0-based
+                    extended_window_mode,
+                    exclude_non_var_pos_threshold,
+                    )
                 )
-            )
-        all_processes.append(p)
+            all_processes.append(p)
 
     for p in all_processes:
       p.start()
@@ -609,8 +610,9 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     for p in all_processes:
         p.join()
         if p.exitcode != 0:
-            logging.debug("[b2w] A process was killed. Terminating the program.")
-            exit(1)
+            p.start()
+            logging.debug("[b2w] A process was killed. Terminating the program. Process was restarted.")
+            #exit(1)
 
     logging.debug("[b2w] All processes completed successfully.")
 

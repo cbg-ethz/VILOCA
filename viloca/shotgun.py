@@ -307,8 +307,10 @@ def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, un
 
     for f1 in file1:
         winFile, chr1, beg, end, cov = f1.rstrip().split('\t')
-        j = min(300_000, int(cov) * 15)
-        rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold))
+        output_name = output_dir + winFile.split("/")[-1][:-4] + "-" + "cor.fas"
+        if not os.path.isfile(output_name):
+            j = min(300_000, int(cov) * 15)
+            rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold))
 
     del end
     del(beg, chr1)
@@ -515,8 +517,9 @@ def main(args):
     for p in all_processes:
         p.join()
         if p.exitcode != 0:
-            logging.debug("[shotgun] A process was killed. Terminating the program.")
-            exit(1)
+            p.start()
+            logging.debug("[shotgun] A process was killed. Restart process.")
+            #exit(1)
 
     logging.debug("[shotgun] All processes completed successfully.")
 
