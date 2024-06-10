@@ -15,6 +15,12 @@ The corresponding manuscript can be found here: https://www.biorxiv.org/content/
 For installation miniconda is recommended: https://docs.conda.io/en/latest/miniconda.html.
 We recommend to install VILOCA in a clean conda environment:
 ```
+conda create --name env_viloca --channel conda-forge --channel bioconda viloca
+conda activate env_viloca
+```
+
+If you want to install the `master` branch use:
+```
 conda create --name env_viloca --channel conda-forge --channel bioconda libshorah
 conda activate env_viloca
 pip install git+https://github.com/cbg-ethz/VILOCA@master
