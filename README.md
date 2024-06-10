@@ -7,6 +7,8 @@ are written in different programming languages and provide error correction,
 haplotype reconstruction and estimation of the frequency of the different
 genetic variants present in a mixed sample.
 
+The corresponding manuscript can be found here: https://www.biorxiv.org/content/10.1101/2024.06.06.597712v1
+
 ---
 
 ### Installation
