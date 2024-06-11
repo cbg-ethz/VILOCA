@@ -2,11 +2,6 @@
 
 # Copyright 2007-2018
 # Niko Beerenwinkel,
-# Nicholas Eriksson,
-# Moritz Gerstung,
-# Lukas Geyrhofer,
-# Kerensa McElroy,
-# Osvaldo Zagordi,
 # ETH Zurich
 
 # This file is part of ShoRAH.
@@ -21,7 +16,7 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with ShoRAH.  If not, see <http://www.gnu.org/licenses/>.
+# along with VILOCA.  If not, see <http://www.gnu.org/licenses/>.
 """
 Module that contains the command line app.
 Why does this file exist, and why not put this in __main__?
@@ -115,8 +110,8 @@ def main():
                           type=str, dest="f", help="reference genome in fasta format")
 
     parent_parser.add_argument("-a", "--alpha", metavar='FLOAT', required=False,
-                               type=float, dest="a", default=0.1,
-                               help="alpha in dpm sampling (controls the probability of creating new classes)")
+                               type=float, dest="a", default=0.0001,
+                               help="alpha")
 
     parent_parser.add_argument("-r", "--region", metavar='chrm:start-stop', required=False, type=str,
                                dest="r", default='',
@@ -194,8 +189,8 @@ def main():
                                 help="Number of starts for inference type mean_field_approximation.")
 
     parser_shotgun.add_argument('--mode', choices=['shorah','learn_error_params','use_quality_scores'],
-                                default='shorah', dest="inference_type",
-                                help="Mode in which to run VILOCA: shorah,  learn_error_params, use_quality_scores")
+                                default='use_quality_scores', dest="inference_type",
+                                help="Mode in which to run VILOCA: shorah,  learn_error_params, use_quality_scores, ShoRAH refers to the method from https://github.com/cbg-ethz/shorah.")
 
     parser_shotgun.add_argument('--non-unique_modus', action='store_false', dest="unique_modus",
                                 help="For inference: Make read set unique with read weights. Cannot be used with --mode shorah.")
