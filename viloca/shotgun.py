@@ -520,9 +520,8 @@ def main(args):
     for p in all_processes:
         p.join()
         if p.exitcode != 0:
-            p.start()
-            logging.debug("[shotgun] A process was killed. Restart process.")
-            #exit(1)
+            logging.debug("[shotgun] A process was killed. Terminating program.")
+            exit(1)
 
     logging.debug("[shotgun] All processes completed successfully.")
 
