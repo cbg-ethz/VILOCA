@@ -307,7 +307,7 @@ def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, un
 
     for f1 in file1:
         winFile, chr1, beg, end, cov = f1.rstrip().split('\t')
-        output_name = winFile.split("/")[-1][:-4] + "-" + "cor.fas"
+        output_name = winFile.split(".fas")[0] + "-" + "cor.fas"
         if not os.path.isfile(output_name):
             j = min(300_000, int(cov) * 15)
             rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold))
@@ -432,53 +432,56 @@ def main(args):
     # run b2w
 
     logging.info('starting b2w')
-    try:
-        if ignore_indels == True:
-            raise NotImplementedError('This argument was deprecated.')
-        b2w_logging((in_bam, in_fasta, win_length, incr, win_min_ext,
-            max_coverage, cov_thrd, region, ignore_indels))
+    if not os.path.isfile(f"coverage.txt"):
+        try:
+            if ignore_indels == True:
+                raise NotImplementedError('This argument was deprecated.')
+            b2w_logging((in_bam, in_fasta, win_length, incr, win_min_ext,
+                max_coverage, cov_thrd, region, ignore_indels))
 
-        if path_insert_file == None and region == "": # special case if no region defined
-            samfile = pysam.AlignmentFile(
+            if path_insert_file == None and region == "": # special case if no region defined
+                samfile = pysam.AlignmentFile(
+                    in_bam,
+                    "r", # auto-detect bam/cram (rc)
+                    reference_filename=in_fasta,
+                    threads=1
+                )
+                if samfile.nreferences != 1:
+                    raise NotImplementedError("There are multiple references in this alignment file.")
+                strategy = tiling.EquispacedTilingStrategy(
+                    f"{samfile.references[0]}:1-{samfile.lengths[0]}",
+                    win_length,
+                    incr,
+                    False,
+                    True
+                )
+            elif path_insert_file == None:
+                strategy = tiling.EquispacedTilingStrategy(region, win_length, incr, True)
+            else:
+                strategy = tiling.PrimerTilingStrategy(path_insert_file)
+                if region != "":
+                    logging.warn(f"region is set to {region} but is not used with this tiling strategy")
+
+            logging.info(f"Using tiling strategy: {type(strategy).__name__}")
+
+            b2w.build_windows(
                 in_bam,
-                "r", # auto-detect bam/cram (rc)
-                reference_filename=in_fasta,
-                threads=1
+                strategy,
+                win_min_ext,
+                max_coverage,
+                cov_thrd,
+                in_fasta,
+                extended_window_mode=extended_window_mode,
+                exclude_non_var_pos_threshold=exclude_non_var_pos_threshold,
+                maxthreads=maxthreads
             )
-            if samfile.nreferences != 1:
-                raise NotImplementedError("There are multiple references in this alignment file.")
-            strategy = tiling.EquispacedTilingStrategy(
-                f"{samfile.references[0]}:1-{samfile.lengths[0]}",
-                win_length,
-                incr,
-                False,
-                True
-            )
-        elif path_insert_file == None:
-            strategy = tiling.EquispacedTilingStrategy(region, win_length, incr, True)
-        else:
-            strategy = tiling.PrimerTilingStrategy(path_insert_file)
-            if region != "":
-                logging.warn(f"region is set to {region} but is not used with this tiling strategy")
+            logging.info('finished b2w')
 
-        logging.info(f"Using tiling strategy: {type(strategy).__name__}")
-
-        b2w.build_windows(
-            in_bam,
-            strategy,
-            win_min_ext,
-            max_coverage,
-            cov_thrd,
-            in_fasta,
-            extended_window_mode=extended_window_mode,
-            exclude_non_var_pos_threshold=exclude_non_var_pos_threshold,
-            maxthreads=maxthreads
-        )
-        logging.info('finished b2w')
-
-    except Exception as e:
-        logging.debug(e)
-        sys.exit('b2w run not successful')
+        except Exception as e:
+            logging.debug(e)
+            sys.exit('b2w run not successful')
+    else:
+        logging.info('coverage.txt file already exists, hence skip b2w and use what is in directory.')
 
     aligned_reads = parse_aligned_reads('reads.fas')
     if len(aligned_reads) == 0:
