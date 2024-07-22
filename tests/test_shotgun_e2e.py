@@ -5,7 +5,7 @@ import pytest
 import shutil
 
 cwd = "./data_1"
-f_path = "raw_reads/w-HXB2-2804-3004.extended-ref.fas"
+f_path = "work/raw_reads/w-HXB2-2804-3004.extended-ref.fas"
 base_files = []
 
 @pytest.fixture(scope="session", autouse=True)

@@ -24,7 +24,7 @@ def test__ingest_sampler_output_to_calc_mean_cluster():
 
 def test__ingest_sampler_results_gamma_theta():
     with patch("builtins.open", mock_open(read_data="bla\n#gamma = 0.967662\n\nlolz\n#theta = 0.88\neof")):
-        out = pooled_post._ingest_sampler_results_gamma_theta(open("debug/dbg.dbg"), "shorah")
+        out = pooled_post._ingest_sampler_results_gamma_theta(open("work/debug/dbg.dbg"), "shorah")
 
         np.testing.assert_almost_equal(out[0][0], -0.032872426234558716)
         np.testing.assert_almost_equal(out[0][1], -3.431512269664515)
