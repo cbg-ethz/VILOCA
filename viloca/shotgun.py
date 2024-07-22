@@ -694,6 +694,7 @@ def main(args):
     shutil.move("reads.fas", "work")
     shutil.move("proposed.dat", "work")
     shutil.move("snv", "work")
+    shutil.move("glob.glob('*.cor.fas')", "work")
 
     logging.info('shotgun run ends')
     logging.info('VILOCA terminated')
