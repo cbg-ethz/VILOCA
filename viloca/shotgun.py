@@ -521,7 +521,7 @@ def main(args):
     logging.debug("[shotgun] All processes completed successfully.")
 
     # prepare directories
-    for sd_name in ['debug', 'haplotypes', 'sampling',
+    for sd_name in ['debug', 'haplotypes', 'freq', 'sampling',
                     'corrected', 'raw_reads', 'inference']:
         try:
             os.mkdir(sd_name)
@@ -556,6 +556,7 @@ def main(args):
     move_files_into_dir("sampling", glob.glob("./w*smp"))
     move_files_into_dir("corrected", glob.glob("./w*reads-cor.fas"))
     move_files_into_dir("haplotypes", glob.glob("./w*reads-support.fas"))
+    move_files_into_dir("freq", glob.glob("./w*reads-freq.csv"))
     move_files_into_dir("sampling", glob.glob("./w*smp"))
     raw_reads_files = glob.glob('./w*reads.fas') + glob.glob('./w*ref.fas') + glob.glob('./w*qualities.npy')
     move_files_into_dir("raw_reads", raw_reads_files)
@@ -686,7 +687,7 @@ def main(args):
     shutil.move("inference", "debug")
     shutil.move("raw_reads", "debug")
     shutil.move("sampling", "debug")
-    shutil.move("sampling", "debug")
+    shutil.move("freq", "debug")
     shutil.move("reads.fas", "debug")
     shutil.move("proposed.dat", "debug")
     shutil.copy("snv/SNVs_0.010000_final.vcf", "SNVs_0.010000_final.vcf")
