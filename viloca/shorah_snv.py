@@ -203,7 +203,7 @@ def parseWindow(line, extended_window_mode, exclude_non_var_pos_threshold,
     _, chrom, beg, end, _ = line.rstrip().split("\t")
 
     file_stem = "w-%s-%s-%s" % (chrom, beg, end)
-    haplo_filename = os.path.join(working_dir, "support", file_stem + ".reads-support.fas")
+    haplo_filename = os.path.join(working_dir, "haplotypes", file_stem + ".reads-support.fas")
 
     if extended_window_mode:
         ref_name = "extended-ref"
