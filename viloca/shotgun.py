@@ -625,15 +625,15 @@ def main(args):
                 envp_post.post_process_for_envp(
                     open(f"raw_reads/{stem}.envp-full-ref.fas"),
                     open(f"raw_reads/{stem}.envp-ref.fas"),
-                    f"support/{stem}.reads-support.fas",
-                    f"support/{stem}.reads-support.fas" # overwrite
+                    f"haplotypes/{stem}.reads-support.fas",
+                    f"haplotypes/{stem}.reads-support.fas" # overwrite
                 )
 
     # Pooled
     b_list = args.b.copy()
     if len(b_list) > 1:
         for idx, i in enumerate(b_list):
-            Path(f"sample{idx}/support").mkdir(parents=True, exist_ok=True)
+            Path(f"sample{idx}/haplotypes").mkdir(parents=True, exist_ok=True)
             Path(f"sample{idx}/corrected").mkdir(parents=True, exist_ok=True)
             with open("coverage.txt") as cov:
                 for line in cov:
@@ -651,7 +651,7 @@ def main(args):
                         f"raw_reads/{stem}.ref.fas",
                         filtered_reads.name,
                         open(f"debug/{stem}.dbg") if inference_type == "shorah" else open(f"inference/{stem}.reads-all_results.pkl", "rb"),
-                        open(f"support/{stem}.reads-support.fas"),
+                        open(f"haplotypes/{stem}.reads-support.fas"),
                         filtered_cor_reads_path,
                         inference_type,
                         None if inference_type != "use_quality_scores" else f"raw_reads/{stem}.qualities.npy" # TODO untested
@@ -659,8 +659,8 @@ def main(args):
                     filtered_reads.close()
 
                     pooled_post.write_support_file_per_sample(
-                        open(f"support/{stem}.reads-support.fas"),
-                        open(f"sample{idx}/support/{stem}.reads-support.fas", "w+"), # TODO
+                        open(f"haplotypes/{stem}.reads-support.fas"),
+                        open(f"sample{idx}/haplotypes/{stem}.reads-support.fas", "w+"), # TODO
                         *posterior_and_avg
                     )
 
