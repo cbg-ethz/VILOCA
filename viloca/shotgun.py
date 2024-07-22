@@ -680,9 +680,9 @@ def main(args):
             os.rename('snv', 'snv_before_%d' % int(time.time()))
             os.mkdir('snv')
 
-        for snv_file in glob.glob('./SNV*')+ glob.glob('./cooccurring_mutations.csv'):
+        for snv_file in glob.glob('./SNV*_final*')+ glob.glob('./cooccurring_mutations.csv'):
             shutil.copy(snv_file, 'snv/')
-        for snv_file in glob.glob('./raw_snv*'):
+        for snv_file in glob.glob('./raw_snv*') + glob.glob('./SNV*.tsv'):
             shutil.move(snv_file, 'snv/')
 
     # now move all files that are not directly results into the debug directory
