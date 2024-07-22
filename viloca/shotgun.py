@@ -689,6 +689,7 @@ def main(args):
     shutil.move("inference", "work")
     shutil.move("raw_reads", "work")
     shutil.move("sampling", "work")
+    shutil.move("debug", "work")
     shutil.move("freq", "work")
     shutil.move("corrected", "work")
     shutil.move("reads.fas", "work")
