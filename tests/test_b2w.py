@@ -14,7 +14,7 @@ def _collect_files(base_path):
         # TODO C++ b2w generates empty files in some cases that are not relevant
         if os.path.getsize(x) > 0:
             spec_files.append(os.path.basename(x))
-    spec_files.extend(['coverage.txt', 'reads.fas'])
+    spec_files.extend(['coverage.txt', 'work/reads.fas'])
     return spec_files
 
 # Note: maximum_reads = math.floor(1e5 / window_length) # TODO why divide?
