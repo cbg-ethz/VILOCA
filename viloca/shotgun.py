@@ -680,7 +680,9 @@ def main(args):
             os.rename('snv', 'snv_before_%d' % int(time.time()))
             os.mkdir('snv')
 
-        for snv_file in glob.glob('./raw_snv*') + glob.glob('./SNV*')+ glob.glob('./cooccurring_mutations.csv'):
+        for snv_file in glob.glob('./SNV*')+ glob.glob('./cooccurring_mutations.csv'):
+            shutil.copy(snv_file, 'snv/')
+        for snv_file in glob.glob('./raw_snv*'):
             shutil.move(snv_file, 'snv/')
 
     # now move all files that are not directly results into the debug directory
@@ -691,8 +693,6 @@ def main(args):
     shutil.move("corrected", "debug")
     shutil.move("reads.fas", "debug")
     shutil.move("proposed.dat", "debug")
-    shutil.copy("snv/SNVs_0.010000_final.vcf", "SNVs_0.010000_final.vcf")
-    shutil.copy("snv/SNVs_0.010000_final.csv", "SNVs_0.010000_final.csv")
     shutil.move("snv", "debug")
 
     logging.info('shotgun run ends')
