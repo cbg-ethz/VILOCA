@@ -521,7 +521,7 @@ def main(args):
     logging.debug("[shotgun] All processes completed successfully.")
 
     # prepare directories
-    for sd_name in ['debug', 'haplotypes',
+    for sd_name in ['debug', 'haplotypes', 'sampling',
                     'corrected', 'raw_reads', 'inference']:
         try:
             os.mkdir(sd_name)
@@ -556,7 +556,7 @@ def main(args):
     move_files_into_dir("sampling", glob.glob("./w*smp"))
     move_files_into_dir("corrected", glob.glob("./w*reads-cor.fas"))
     move_files_into_dir("haplotypes", glob.glob("./w*reads-support.fas"))
-    #move_files_into_dir("sampling", glob.glob("./w*smp"))
+    move_files_into_dir("sampling", glob.glob("./w*smp"))
     raw_reads_files = glob.glob('./w*reads.fas') + glob.glob('./w*ref.fas') + glob.glob('./w*qualities.npy')
     move_files_into_dir("raw_reads", raw_reads_files)
     inference_files = glob.glob("./w*best_run.txt") + glob.glob("./w*history_run*.csv") + glob.glob("./w*results*.pkl")
@@ -681,6 +681,17 @@ def main(args):
 
         for snv_file in glob.glob('./raw_snv*') + glob.glob('./SNV*')+ glob.glob('./cooccurring_mutations.csv'):
             shutil.move(snv_file, 'snv/')
+
+    # now move all files that are not directly results into the debug directory
+    shutil.move("inference", "debug")
+    shutil.move("raw_reads", "debug")
+    shutil.move("sampling", "debug")
+    shutil.move("sampling", "debug")
+    shutil.move("reads.fas", "debug")
+    shutil.move("proposed.dat", "debug")
+    shutil.copy("snv/SNVs_0.010000_final.vcf", "SNVs_0.010000_final.vcf")
+    shutil.copy("snv/SNVs_0.010000_final.csv", "SNVs_0.010000_final.csv")
+    shutil.move("snv", "debug")
 
     logging.info('shotgun run ends')
     logging.info('VILOCA terminated')
