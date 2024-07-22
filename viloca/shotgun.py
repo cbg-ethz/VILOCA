@@ -688,6 +688,7 @@ def main(args):
     shutil.move("raw_reads", "debug")
     shutil.move("sampling", "debug")
     shutil.move("freq", "debug")
+    shutil.move("corrected", "debug")
     shutil.move("reads.fas", "debug")
     shutil.move("proposed.dat", "debug")
     shutil.copy("snv/SNVs_0.010000_final.vcf", "SNVs_0.010000_final.vcf")
