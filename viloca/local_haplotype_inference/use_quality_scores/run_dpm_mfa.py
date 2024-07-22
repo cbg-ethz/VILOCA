@@ -13,7 +13,7 @@ from . import analyze_results
 from . import cavi
 
 logging.basicConfig(
-    filename="viloca_inference.log", encoding="utf-8", level=logging.INFO
+    filename="viloca.log", encoding="utf-8", level=logging.INFO
 )
 
 

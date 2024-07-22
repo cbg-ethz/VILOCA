@@ -737,6 +737,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         reference_filename=reference_filename,
         threads=max_proc #1
     )
+    # print this message since pysam print confusing error message with the functions above.
+    print("Index file was created successfully.")
     #reffile = pysam.FastaFile(reference_filename) --> we need to read it in each child processo
     #counter = 0 #--> counter is now coputed initially for all windows
     reference_name = tiling_strategy.get_reference_name()

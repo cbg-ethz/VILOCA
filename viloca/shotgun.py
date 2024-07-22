@@ -521,7 +521,7 @@ def main(args):
     logging.debug("[shotgun] All processes completed successfully.")
 
     # prepare directories
-    for sd_name in ['debug', 'sampling', 'freq', 'support',
+    for sd_name in ['debug', 'haplotypes',
                     'corrected', 'raw_reads', 'inference']:
         try:
             os.mkdir(sd_name)
@@ -555,9 +555,8 @@ def main(args):
     move_files_into_dir("debug", glob.glob("./w*dbg"))
     move_files_into_dir("sampling", glob.glob("./w*smp"))
     move_files_into_dir("corrected", glob.glob("./w*reads-cor.fas"))
-    move_files_into_dir("support", glob.glob("./w*reads-support.fas"))
-    move_files_into_dir("freq", glob.glob("./w*reads-freq.csv"))
-    move_files_into_dir("sampling", glob.glob("./w*smp"))
+    move_files_into_dir("haplotypes", glob.glob("./w*reads-support.fas"))
+    #move_files_into_dir("sampling", glob.glob("./w*smp"))
     raw_reads_files = glob.glob('./w*reads.fas') + glob.glob('./w*ref.fas') + glob.glob('./w*qualities.npy')
     move_files_into_dir("raw_reads", raw_reads_files)
     inference_files = glob.glob("./w*best_run.txt") + glob.glob("./w*history_run*.csv") + glob.glob("./w*results*.pkl")
@@ -684,3 +683,5 @@ def main(args):
             shutil.move(snv_file, 'snv/')
 
     logging.info('shotgun run ends')
+    logging.info('VILOCA terminated')
+    print("VILOCA terminated successfully.")
