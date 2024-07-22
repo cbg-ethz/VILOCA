@@ -521,7 +521,7 @@ def main(args):
     logging.debug("[shotgun] All processes completed successfully.")
 
     # prepare directories
-    for sd_name in ['debug', 'haplotypes', 'freq', 'sampling',
+    for sd_name in ['debug', 'haplotypes', 'freq', 'sampling', 'work',
                     'corrected', 'raw_reads', 'inference']:
         try:
             os.mkdir(sd_name)
@@ -686,14 +686,14 @@ def main(args):
             shutil.move(snv_file, 'snv/')
 
     # now move all files that are not directly results into the debug directory
-    shutil.move("inference", "debug")
-    shutil.move("raw_reads", "debug")
-    shutil.move("sampling", "debug")
-    shutil.move("freq", "debug")
-    shutil.move("corrected", "debug")
-    shutil.move("reads.fas", "debug")
-    shutil.move("proposed.dat", "debug")
-    shutil.move("snv", "debug")
+    shutil.move("inference", "work")
+    shutil.move("raw_reads", "work")
+    shutil.move("sampling", "work")
+    shutil.move("freq", "work")
+    shutil.move("corrected", "work")
+    shutil.move("reads.fas", "work")
+    shutil.move("proposed.dat", "work")
+    shutil.move("snv", "work")
 
     logging.info('shotgun run ends')
     logging.info('VILOCA terminated')
