@@ -183,7 +183,7 @@ def main():
 
     parser_shotgun.add_argument("--n_max_haplotypes", metavar='INT', type=int,
                                 required=False, default=100, dest="n_max_haplotypes",
-                                help="Guess of maximal guess of haplotypes.")
+                                help="Guess of maximal guess of haplotypes. If VILOCA returns the maximal number of haplotypes then this number was choosen to little and needs to be increased.")
 
     parser_shotgun.add_argument("--conv_thres", metavar='FLOAT', type=float,
                             required=False, default=1e-03, dest="conv_thres",
