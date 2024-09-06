@@ -6,6 +6,8 @@ data. It is designed to analyse genetically heterogeneous samples. Its tools
 are written in different programming languages and provide error correction,
 haplotype reconstruction and estimation of the frequency of the different
 genetic variants present in a mixed sample.
+VILOCA takes an alignment file as input, and subsequently generates mutation calls and local haplotypes.
+
 
 The corresponding manuscript can be found here: https://www.biorxiv.org/content/10.1101/2024.06.06.597712v1
 
@@ -61,6 +63,13 @@ There are several parameters available:
 `--exclude_non_var_pos_threshold`: Percentage threshold for positions exclusion. Positions with base variations below this threshold will be excluded from the analysis, instead this position will be treated as if it only contains the reference base. This means that mutations of frequency < `exclude_non_var_pos_threshold` will not be called.
 
 `--windowsize`: In case no insert file is provided, the genome is tiled into uniform local regions. `windowsize` determines the length of those local regions. It should be of roughly the length of the reads. This is also the length of the haplotypes that are produced.
+
+### Output
+`haplotypes` This directory contains the reconstructed local haplotypes as separate fasta files per local region.
+
+`coverage.txt` List of each local region with start and end positions, and number of reads considered in the region.
+
+`cooccurring_mutations.csv` All mutation calls including the information on which haplotype it occurred on.
 
 ## Development/CI with Docker
 The following command in the root directory will let you interact with the project locally through Docker.

@@ -5,7 +5,7 @@ import pytest
 import shutil
 
 cwd = "./data_1"
-f_path = "raw_reads/w-HXB2-2804-3004.extended-ref.fas"
+f_path = "work/raw_reads/w-HXB2-2804-3004.extended-ref.fas"
 base_files = []
 
 @pytest.fixture(scope="session", autouse=True)
@@ -35,7 +35,7 @@ def test_e2e_shorah():
 
     assert filecmp.cmp(
         "./data_1/test.csv",
-        "./data_1/snv/SNVs_0.010000_final.csv",
+        "./data_1/work/snv/SNVs_0.010000_final.csv",
         shallow=False
     )
 

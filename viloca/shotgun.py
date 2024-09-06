@@ -523,7 +523,7 @@ def main(args):
     logging.debug("[shotgun] All processes completed successfully.")
 
     # prepare directories
-    for sd_name in ['debug', 'sampling', 'freq', 'support',
+    for sd_name in ['debug', 'haplotypes', 'freq', 'sampling', 'work',
                     'corrected', 'raw_reads', 'inference']:
         try:
             os.mkdir(sd_name)
@@ -557,7 +557,7 @@ def main(args):
     move_files_into_dir("debug", glob.glob("./w*dbg"))
     move_files_into_dir("sampling", glob.glob("./w*smp"))
     move_files_into_dir("corrected", glob.glob("./w*reads-cor.fas"))
-    move_files_into_dir("support", glob.glob("./w*reads-support.fas"))
+    move_files_into_dir("haplotypes", glob.glob("./w*reads-support.fas"))
     move_files_into_dir("freq", glob.glob("./w*reads-freq.csv"))
     move_files_into_dir("sampling", glob.glob("./w*smp"))
     raw_reads_files = glob.glob('./w*reads.fas') + glob.glob('./w*ref.fas') + glob.glob('./w*qualities.npy')
@@ -628,15 +628,15 @@ def main(args):
                 envp_post.post_process_for_envp(
                     open(f"raw_reads/{stem}.envp-full-ref.fas"),
                     open(f"raw_reads/{stem}.envp-ref.fas"),
-                    f"support/{stem}.reads-support.fas",
-                    f"support/{stem}.reads-support.fas" # overwrite
+                    f"haplotypes/{stem}.reads-support.fas",
+                    f"haplotypes/{stem}.reads-support.fas" # overwrite
                 )
 
     # Pooled
     b_list = args.b.copy()
     if len(b_list) > 1:
         for idx, i in enumerate(b_list):
-            Path(f"sample{idx}/support").mkdir(parents=True, exist_ok=True)
+            Path(f"sample{idx}/haplotypes").mkdir(parents=True, exist_ok=True)
             Path(f"sample{idx}/corrected").mkdir(parents=True, exist_ok=True)
             with open("coverage.txt") as cov:
                 for line in cov:
@@ -654,7 +654,7 @@ def main(args):
                         f"raw_reads/{stem}.ref.fas",
                         filtered_reads.name,
                         open(f"debug/{stem}.dbg") if inference_type == "shorah" else open(f"inference/{stem}.reads-all_results.pkl", "rb"),
-                        open(f"support/{stem}.reads-support.fas"),
+                        open(f"haplotypes/{stem}.reads-support.fas"),
                         filtered_cor_reads_path,
                         inference_type,
                         None if inference_type != "use_quality_scores" else f"raw_reads/{stem}.qualities.npy" # TODO untested
@@ -662,8 +662,8 @@ def main(args):
                     filtered_reads.close()
 
                     pooled_post.write_support_file_per_sample(
-                        open(f"support/{stem}.reads-support.fas"),
-                        open(f"sample{idx}/support/{stem}.reads-support.fas", "w+"), # TODO
+                        open(f"haplotypes/{stem}.reads-support.fas"),
+                        open(f"sample{idx}/haplotypes/{stem}.reads-support.fas", "w+"), # TODO
                         *posterior_and_avg
                     )
 
@@ -682,7 +682,23 @@ def main(args):
             os.rename('snv', 'snv_before_%d' % int(time.time()))
             os.mkdir('snv')
 
-        for snv_file in glob.glob('./raw_snv*') + glob.glob('./SNV*')+ glob.glob('./cooccurring_mutations.csv'):
+        for snv_file in glob.glob('./SNV*_final*')+ glob.glob('./cooccurring_mutations.csv'):
+            shutil.copy(snv_file, 'snv/')
+        for snv_file in glob.glob('./raw_snv*') + glob.glob('./SNV*.tsv'):
             shutil.move(snv_file, 'snv/')
 
+    # now move all files that are not directly results into the debug directory
+    shutil.move("inference", "work")
+    shutil.move("raw_reads", "work")
+    shutil.move("sampling", "work")
+    shutil.move("debug", "work")
+    shutil.move("freq", "work")
+    shutil.move("corrected", "work")
+    shutil.move("reads.fas", "work")
+    shutil.move("proposed.dat", "work")
+    shutil.move("snv", "work")
+    shutil.move(glob.glob('*.cor.fas')[0], "work")
+
     logging.info('shotgun run ends')
+    logging.info('VILOCA terminated')
+    print("VILOCA terminated successfully.")
