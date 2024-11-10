@@ -114,8 +114,9 @@ def run_cavi(
     iter = 0
     converged = False
     elbo = 0
+    min_number_iterations = 10
     state_curr_dict = state_init_dict
-    while converged is False:
+    while (converged is False) or (iter < min_number_iterations):
 
         if iter <= 1:
             digamma_alpha_sum = digamma(state_curr_dict["alpha"].sum(axis=0))
@@ -155,7 +156,7 @@ def run_cavi(
                 break
             elif (history_elbo[-2] > elbo) and np.abs(elbo - history_elbo[-2]) > 1e-08:
                 exit_message = "Error: ELBO is decreasing."
-                break
+                #break
             elif np.abs(elbo - history_elbo[-2]) < convergence_threshold:
                 converged = True
                 exit_message = "ELBO converged."
