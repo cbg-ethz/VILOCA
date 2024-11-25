@@ -158,7 +158,7 @@ def run_cavi(
                 break
             elif (history_elbo[-2] > elbo) and np.abs(elbo - history_elbo[-2]) > 1e-08:
                 exit_message = "Error: ELBO is decreasing."
-                #break
+                break
             elif np.abs(elbo - history_elbo[-2]) < convergence_threshold:
                 converged = True
                 exit_message = "ELBO converged."
