@@ -41,7 +41,7 @@ def test_e2e_shorah():
 
 def test_e2e_shorah_with_extended_window_mode():
     p = subprocess.run(
-        "./shotgun_test.sh --extended_window_mode --non-unique_modus", shell=True, check=True, cwd=cwd
+        "./shotgun_test.sh --extended_window_mode", shell=True, check=True, cwd=cwd
     )
 
     assert p.returncode == 0
