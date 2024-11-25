@@ -35,6 +35,7 @@ def main(
     alphabet="ACGT-",
     unique_modus=True,
     convergence_threshold=1e-03,
+    save_pkl=False,
 ):
 
     window_id = freads_in.split("/")[-1][:-4]  # freads_in is absolute path
@@ -105,20 +106,12 @@ def main(
     exit_meassage = sorted_results[0][1]["exit_message"]
     logging.info("CAVI termination " + str(exit_meassage))
 
-    # with open(output_name + "all_results.json", "w") as f:
-    #     json.dump(sorted_results[0][1], f, cls=NumpyEncoder)
-
-    with open(output_name + "all_results.pkl", "wb") as f2:
-        pickle.dump(sorted_results, f2)
-
-    # TODO: Would be nicer to use json dump.
-    # import json
-    # with open(output_name + "all_results.pkl", "wb") as fp:
-    #    json.dump(sorted_results, fp)
-
-    logging.info(
-        "Results dicts of all runs written to " + output_name + "all_results.pkl"
-    )
+    if save_pkl:
+        with open(output_name + "all_results.pkl", "wb") as f2:
+            pickle.dump(sorted_results, f2)
+        logging.info(
+            "Results dicts of all runs written to " + output_name + "all_results.pkl"
+        )
 
     state_curr_dict = result_list[best_run_idx][0]
 
