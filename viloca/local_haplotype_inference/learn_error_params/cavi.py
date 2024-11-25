@@ -131,7 +131,8 @@ def run_cavi(
     elbo = 0
     state_curr_dict = state_init_dict
     k = 0
-    while converged is False:
+    min_number_iterations = 10
+    while (converged is False) or (iter < min_number_iterations):
 
         if iter <= 1:
             digamma_alpha_sum = digamma(state_curr_dict["alpha"].sum(axis=0))
@@ -160,8 +161,8 @@ def run_cavi(
             state_init_dict,
             state_curr_dict,
         )
-        
-        if iter % 2 == 0:
+
+        if iter % (min_number_iterations-1) == 0:
             history_elbo.append(elbo)
             history_mean_log_pi.append(state_curr_dict["mean_log_pi"])
             history_mean_log_gamma.append(state_curr_dict["mean_log_gamma"])

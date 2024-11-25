@@ -142,7 +142,7 @@ def run_cavi(
             state_curr_dict,
         )
 
-        if iter % 2 == 0:
+        if iter % (min_number_iterations-1) == 0:
             history_elbo.append(elbo)
             history_mean_log_pi.append(state_curr_dict["mean_log_pi"])
             history_mean_log_gamma.append(state_curr_dict["mean_log_gamma"])
