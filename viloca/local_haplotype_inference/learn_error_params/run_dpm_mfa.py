@@ -29,7 +29,7 @@ def gzip_file(f_name):
     return f_out.name
 
 
-def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=False):
+def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=False,save_pkl=False):
 
     window_id = freads_in.split("/")[-1][:-4]  # freads_in is absolute path
 
@@ -39,7 +39,7 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
     # Read in reads
     reference_seq, ref_id = preparation.load_reference_seq(fref_in)
     reference_binary = preparation.reference2binary(reference_seq, alphabet)
-    reads_list = preparation.load_fasta2reads_list(freads_in, alphabet, False)
+    reads_list = preparation.load_fasta2reads_list(freads_in, alphabet, unique_modus)
     reads_seq_binary, reads_weights = preparation.reads_list_to_array(reads_list)
 
     if n_starts >1:
@@ -88,8 +88,12 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
 
     logging.info("CAVI termination " + str(sort_results[0][2]["exit_message"]))
 
-    with open(output_name + "all_results.pkl", "wb") as f2:
-        pickle.dump(sort_results, f2)
+    if save_pkl:
+        with open(output_name + "all_results.pkl", "wb") as f2:
+            pickle.dump(sorted_results, f2)
+        logging.info(
+            "Results dicts of all runs written to " + output_name + "all_results.pkl"
+        )
 
     logging.info(
         "Results dicts of all runs written to " + output_name + "all_results.pkl"
