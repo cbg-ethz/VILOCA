@@ -31,7 +31,7 @@ def haplotypes_to_fasta(state_curr_dict, output_dir):
         ave_reads = state_curr_dict["weight" + str(k)]
         if ave_reads==0:
             # this haplotype will not be reported as there are no reads
-            # supporting it.
+            # supporting it. 
             continue
 
         head = (
