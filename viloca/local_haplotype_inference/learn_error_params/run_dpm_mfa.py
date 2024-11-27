@@ -29,7 +29,7 @@ def gzip_file(f_name):
     return f_out.name
 
 
-def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=False, record_history):
+def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=False, record_history=False):
 
     window_id = freads_in.split("/")[-1][:-4]  # freads_in is absolute path
 
