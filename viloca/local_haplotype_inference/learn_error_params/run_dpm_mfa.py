@@ -29,7 +29,7 @@ def gzip_file(f_name):
     return f_out.name
 
 
-def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=False):
+def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=False, record_history):
 
     window_id = freads_in.split("/")[-1][:-4]  # freads_in is absolute path
 
@@ -88,12 +88,12 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
 
     logging.info("CAVI termination " + str(sort_results[0][2]["exit_message"]))
 
-    with open(output_name + "all_results.pkl", "wb") as f2:
-        pickle.dump(sort_results, f2)
-
-    logging.info(
-        "Results dicts of all runs written to " + output_name + "all_results.pkl"
-    )
+    if record_history:
+        with open(output_name + "all_results.pkl", "wb") as f2:
+            pickle.dump(sort_results, f2)
+        logging.info(
+            "Results dicts of all runs written to " + output_name + "all_results.pkl"
+        )
 
     state_curr_dict = result_list[max_idx][1]
     logging.info("Maximal ELBO " + str(max_elbo) + "in run " + str(max_idx))
