@@ -199,7 +199,7 @@ def run_dpm(run_setting):
                      K=int(n_max_haplotypes),
                      alpha0=float(a),
                      alphabet = 'ACGT-',
-                     unique_modus = unique_modus
+                     unique_modus = unique_modus,
                      #convergence_threshold = inference_convergence_threshold,
                      record_history = record_history
                      )
