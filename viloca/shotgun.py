@@ -138,7 +138,7 @@ def run_dpm(run_setting):
     """run the dirichlet process clustering
     """
 
-    filein, j, a, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold = run_setting
+    filein, j, a, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history = run_setting
 
     ref_in = filein.split('.reads.')[0] + str('.ref.fas')
     fname_qualities = filein.split('.reads.')[0] + str('.qualities.npy')
@@ -187,7 +187,8 @@ def run_dpm(run_setting):
                      alpha0=float(a),
                      alphabet = 'ACGT-',
                      unique_modus = unique_modus,
-                     convergence_threshold = inference_convergence_threshold
+                     convergence_threshold = inference_convergence_threshold,
+                     record_history = record_history
                      )
 
     elif inference_type == 'learn_error_params':
@@ -200,6 +201,7 @@ def run_dpm(run_setting):
                      alphabet = 'ACGT-',
                      unique_modus = unique_modus
                      #convergence_threshold = inference_convergence_threshold,
+                     record_history = record_history
                      )
     logging.debug('Finished sampler')
 
@@ -296,7 +298,7 @@ def base_break(baselist):
     return rc
 
 
-def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold):
+def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history, reuse_files):
     """Return windows to run on diri_sampler."""
 
     rn_list = []
@@ -307,10 +309,13 @@ def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, un
 
     for f1 in file1:
         winFile, chr1, beg, end, cov = f1.rstrip().split('\t')
+        j = min(300_000, int(cov) * 15)
         output_name = winFile.split(".fas")[0] + "-" + "cor.fas"
-        if not os.path.isfile(output_name):
-            j = min(300_000, int(cov) * 15)
-            rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold))
+        if not (reuse_files and os.path.isfile(output_name)):
+            rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history))
+        else:
+            logging.info(f'[file already exits] Use {output_name} generated on {time.ctim(pathlib.Path(output_name).stat().st_mtime)}')
+
 
     del end
     del(beg, chr1)
@@ -405,6 +410,8 @@ def main(args):
     extended_window_mode = args.extended_window_mode
     exclude_non_var_pos_threshold = args.exclude_non_var_pos_threshold
     win_min_ext = args.win_min_ext
+    reuse_files = args.reuse_files
+    record_history = args.record_history
 
     logging.info(' '.join(sys.argv))
 
@@ -432,7 +439,7 @@ def main(args):
     # run b2w
 
     logging.info('starting b2w')
-    if not os.path.isfile(f"coverage.txt"):
+    if not (reuse_files and os.path.isfile(f"coverage.txt")):
         try:
             if ignore_indels == True:
                 raise NotImplementedError('This argument was deprecated.')
@@ -473,7 +480,8 @@ def main(args):
                 in_fasta,
                 extended_window_mode=extended_window_mode,
                 exclude_non_var_pos_threshold=exclude_non_var_pos_threshold,
-                maxthreads=maxthreads
+                maxthreads=maxthreads,
+                reuse_files=reuse_files
             )
             logging.info('finished b2w')
 
@@ -481,7 +489,7 @@ def main(args):
             logging.debug(e)
             sys.exit('b2w run not successful')
     else:
-        logging.info('coverage.txt file already exists, hence skip b2w and use what is in directory.')
+        logging.info(f'[file already exits] Use coverage.txt generated on {time.ctim(pathlib.Path("coverage.txt").stat().st_mtime)}')
 
     aligned_reads = parse_aligned_reads('reads.fas')
     if len(aligned_reads) == 0:
@@ -505,7 +513,7 @@ def main(args):
     # Now the windows and the error correction #
     ############################################
 
-    runlist = win_to_run(alpha, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold)
+    runlist = win_to_run(alpha, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history, reuse_files)
     logging.info('will run on %d windows', len(runlist))
     # run diri_sampler on all available processors but one
     max_proc = max(cpu_count() - 1, 1)
