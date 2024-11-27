@@ -66,7 +66,8 @@ def main(
             reads_log_error_proba,
             n_starts,
             output_name,
-            convergence_threshold
+            convergence_threshold,
+            record_history
         )
 
     else:
@@ -83,6 +84,7 @@ def main(
                 0,
                 output_name,
                 convergence_threshold,
+                record_history
             )
         ]
 
