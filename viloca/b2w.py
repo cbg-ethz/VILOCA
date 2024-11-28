@@ -7,6 +7,7 @@ import logging
 from multiprocessing import Process, cpu_count
 import os
 import hashlib
+from pathlib import Path
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
