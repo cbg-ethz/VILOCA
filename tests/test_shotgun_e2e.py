@@ -47,8 +47,8 @@ def test_e2e_shorah():
 def test_e2e_shorah_with_extended_window_mode():
     cwd_test_e2e_extended_window_mode = "./data_1/test_e2e_extended_window_modee"
     # Check if the directory exists, if not, create it
-    if not os.path.exists(cwd_test_e2e_shorah_with_extended_window_mode):
-        os.makedirs(cwd_test_e2e_shorah_with_extended_window_mode)
+    if not os.path.exists(cwd_test_e2e_extended_window_mode):
+        os.makedirs(cwd_test_e2e_extended_window_mode)
     p = subprocess.run(
         "../shotgun_test.sh --extended_window_mode", shell=True, check=True, cwd=cwd_test_e2e_extended_window_mode
     )
