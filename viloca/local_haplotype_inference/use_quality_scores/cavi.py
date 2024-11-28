@@ -113,7 +113,8 @@ def run_cavi(
     converged = False
     elbo = 0
     state_curr_dict = state_init_dict
-    while converged is False:
+    min_number_iterations = 10
+    while (converged is False) or (iter < min_number_iterations):
 
         if iter <= 1:
             digamma_alpha_sum = digamma(state_curr_dict["alpha"].sum(axis=0))
