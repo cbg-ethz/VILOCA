@@ -607,7 +607,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                 )
             all_processes.append(p)
         else:
-            logging.info(f'[file already exits] Use window files generated on {time.ctim(pathlib.Path(f"coverage_{idx}.txt").stat().st_mtime)}')
+            logging.info(f'[file already exits] Use window files generated on {time.ctime(pathlib.Path(f"coverage_{idx}.txt").stat().st_mtime)}')
 
     for p in all_processes:
       p.start()
