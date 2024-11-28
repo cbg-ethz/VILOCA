@@ -314,7 +314,7 @@ def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, un
         if not (reuse_files and os.path.isfile(output_name)):
             rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history))
         else:
-            logging.info(f'[file already exits] Use {output_name} generated on {time.ctime(pathlib.Path(output_name).stat().st_mtime)}')
+            logging.info(f'[file already exits] Use {output_name} generated on {time.ctime(Path(output_name).stat().st_mtime)}')
 
 
     del end
@@ -489,7 +489,7 @@ def main(args):
             logging.debug(e)
             sys.exit('b2w run not successful')
     else:
-        logging.info(f'[file already exits] Use coverage.txt generated on {time.ctime(pathlib.Path("coverage.txt").stat().st_mtime)}')
+        logging.info(f'[file already exits] Use coverage.txt generated on {time.ctime(Path("coverage.txt").stat().st_mtime)}')
 
     aligned_reads = parse_aligned_reads('reads.fas')
     if len(aligned_reads) == 0:
