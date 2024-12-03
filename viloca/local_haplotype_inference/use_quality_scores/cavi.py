@@ -33,7 +33,8 @@ def multistart_cavi(
     reads_log_error_proba,
     n_starts,
     output_dir,
-    convergence_threshold
+    convergence_threshold,
+    record_history
 ):
 
     pool = mp.Pool(mp.cpu_count())
@@ -51,7 +52,8 @@ def multistart_cavi(
                 reads_log_error_proba,
                 start,
                 output_dir,
-                convergence_threshold
+                convergence_threshold,
+                record_history
             ),
             callback=collect_result,
         )
@@ -74,6 +76,7 @@ def run_cavi(
     start_id,
     output_dir,
     convergence_threshold,
+    record_history,
 ):
     """
     Runs cavi (coordinate ascent variational inference).
@@ -85,12 +88,6 @@ def run_cavi(
         "alpha0": alpha0,
         "alphabet": alphabet,
     }
-
-    history_alpha = []
-    history_mean_log_pi = []
-    history_mean_log_gamma = []
-    history_mean_cluster = []
-    history_elbo = []
 
     state_init_dict = initialization.draw_init_state(
         n_cluster, alpha0, alphabet, reads_list, reference_binary
@@ -104,10 +101,11 @@ def run_cavi(
         }
     )
 
-    history_alpha = [state_init_dict["alpha"]]
-    history_mean_log_pi = [state_init_dict["mean_log_pi"]]
-    history_mean_log_gamma = [state_init_dict["mean_log_gamma"]]
-    history_mean_cluster = [state_init_dict["mean_cluster"]]
+    if record_history:
+        history_alpha = [state_init_dict["alpha"]]
+        history_mean_log_pi = [state_init_dict["mean_log_pi"]]
+        history_mean_log_gamma = [state_init_dict["mean_log_gamma"]]
+        history_mean_cluster = [state_init_dict["mean_cluster"]]
     history_elbo = []
 
     # Iteratively update mean values
@@ -115,7 +113,8 @@ def run_cavi(
     converged = False
     elbo = 0
     state_curr_dict = state_init_dict
-    while converged is False:
+    min_number_iterations = 10
+    while (converged is False) or (iter < min_number_iterations):
 
         if iter <= 1:
             digamma_alpha_sum = digamma(state_curr_dict["alpha"].sum(axis=0))
@@ -141,11 +140,13 @@ def run_cavi(
             state_curr_dict,
         )
 
-        if iter % 2 == 0:
+        if (iter % 2 == 0) and record_history:
             history_elbo.append(elbo)
             history_mean_log_pi.append(state_curr_dict["mean_log_pi"])
             history_mean_log_gamma.append(state_curr_dict["mean_log_gamma"])
             history_mean_cluster.append(state_curr_dict["mean_cluster"])
+        else:
+            history_elbo.append(elbo)
 
         if iter > 1:
             if np.isnan(elbo):
@@ -167,19 +168,30 @@ def run_cavi(
 
     state_curr_dict.update({"elbo": elbo})
 
-    dict_result.update(
-        {
-            "exit_message": exit_message,
-            "n_iterations": iter,
-            "converged": converged,
-            "elbo": elbo,
-            "history_elbo": history_elbo,
-            "history_alpha": history_alpha,
-            "history_mean_log_pi": history_mean_log_pi,
-            "history_mean_log_gamma": history_mean_log_gamma,
-            "history_mean_cluster": history_mean_cluster,
-        }
-    )
+    if record_history:
+        dict_result.update(
+            {
+                "exit_message": exit_message,
+                "n_iterations": iter,
+                "converged": converged,
+                "elbo": elbo,
+                "history_elbo": history_elbo,
+                "history_alpha": history_alpha,
+                "history_mean_log_pi": history_mean_log_pi,
+                "history_mean_log_gamma": history_mean_log_gamma,
+                "history_mean_cluster": history_mean_cluster,
+            }
+        )
+    else:
+        dict_result.update(
+            {
+                "exit_message": exit_message,
+                "n_iterations": iter,
+                "converged": converged,
+                "elbo": elbo,
+                "history_elbo": history_elbo,
+            }
+        )
     dict_result.update(state_curr_dict)
 
     result = (state_curr_dict, dict_result)

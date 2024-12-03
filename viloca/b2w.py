@@ -7,6 +7,7 @@ import logging
 from multiprocessing import Process, cpu_count
 import os
 import hashlib
+from pathlib import Path
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
@@ -340,7 +341,7 @@ def parallel_run_one_window(
     indel_map,
     max_ins_at_pos,
     extended_window_mode,
-    exclude_non_var_pos_threshold
+    exclude_non_var_pos_threshold,
 ):
     """
     build one window.
@@ -510,7 +511,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     exact_conformance_fix_0_1_basing_in_reads: Optional[bool] = False,
     extended_window_mode: Optional[bool] = False,
     exclude_non_var_pos_threshold: Optional[float] = -1,
-    maxthreads: Optional[int] = 1) -> None:
+    maxthreads: Optional[int] = 1,
+    reuse_files = False) -> None:
     """Summarizes reads aligned to reference into windows.
     Three products are created:
     #. Multiple FASTA files (one for each window position)
@@ -580,7 +582,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     all_processes = []
     for idx, (window_start, window_length, control_window_length) in enumerate(tiling):
         counter = counter_list[idx]
-        if not os.path.isfile(f"coverage_{idx}.txt"):
+        if not (reuse_files and os.path.isfile(f"coverage_{idx}.txt")):
             p = Process(
                 target=parallel_run_one_window,
                 args=(
@@ -605,6 +607,8 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
                     )
                 )
             all_processes.append(p)
+        else:
+            logging.info(f'[file already exits] Use window files generated on {time.ctime(Path(f"coverage_{idx}.txt").stat().st_mtime)}')
 
     for p in all_processes:
       p.start()

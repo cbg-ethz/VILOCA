@@ -11,7 +11,7 @@ RUN apt-get update -y && \
 
 RUN pip install "poetry==$POETRY_VERSION"
 
-COPY pyproject.toml poetry.lock /usr/app/
+COPY pyproject.toml /usr/app/
 
 # https://stackoverflow.com/questions/53835198/integrating-python-poetry-with-docker
 RUN cd /usr/app && poetry install --no-interaction --no-ansi --no-root

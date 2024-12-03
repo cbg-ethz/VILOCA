@@ -34,6 +34,7 @@ def multistart_cavi(
     reads_weights,
     n_starts,
     output_dir,
+    record_history
 ):
 
     pool = mp.Pool(mp.cpu_count())
@@ -51,6 +52,7 @@ def multistart_cavi(
                 reads_weights,
                 start,
                 output_dir,
+                record_history
             ),
             callback=collect_result,
         )
@@ -72,6 +74,7 @@ def run_cavi(
     reads_weights,
     start_id,
     output_dir,
+    record_history
 ):
 
     """
@@ -85,16 +88,7 @@ def run_cavi(
         "alphabet": alphabet,
     }  # N= #reads, K= #components
 
-    history_alpha = []
-    history_mean_log_pi = []
-    history_theta_c = []
-    history_theta_d = []
-    history_mean_log_theta = []
-    history_gamma_a = []
-    history_gamma_b = []
-    history_mean_log_gamma = []
-    history_mean_haplo = []
-    history_mean_cluster = []
+
     history_elbo = []
 
     state_init_dict = initialization.draw_init_state(
@@ -130,8 +124,8 @@ def run_cavi(
     converged = False
     elbo = 0
     state_curr_dict = state_init_dict
-    k = 0
-    while converged is False:
+    min_number_iterations = 10
+    while (converged is False) or (iter < min_number_iterations):
 
         if iter <= 1:
             digamma_alpha_sum = digamma(state_curr_dict["alpha"].sum(axis=0))
@@ -160,7 +154,7 @@ def run_cavi(
             state_init_dict,
             state_curr_dict,
         )
-        
+
         if iter % 2 == 0:
             history_elbo.append(elbo)
             history_mean_log_pi.append(state_curr_dict["mean_log_pi"])
@@ -184,11 +178,11 @@ def run_cavi(
                 break
             elif np.abs(elbo - history_elbo[-2]) < 1e-03:
                 converged = True
-                k += 1
+                iter += 1
                 message = "ELBO converged."
                 exitflag = 0
             else:
-                k = 0
+                iter = 0
 
         # if k%10==0: # every 10th parameter set is saved to history
         state_curr_dict.update({"elbo": elbo})
@@ -198,28 +192,41 @@ def run_cavi(
 
     state_curr_dict.update({"elbo": elbo})
 
-    dict_result.update(
-        {
-            "exit_message": message,
-            "exitflag": exitflag,
-            "n_iterations": iter,
-            "converged": converged,
-            "elbo": elbo,
-            "history_mean_log_theta": history_mean_log_theta,
-            "history_elbo": history_elbo,
-            "history_alpha": history_alpha,
-            "history_mean_log_pi": history_mean_log_pi,
-            "history_theta_c": history_theta_c,
-            "history_alpha": history_alpha,
-            "history_theta_d": history_theta_d,
-            "history_mean_log_theta": history_mean_log_theta,
-            "history_gamma_a": history_gamma_a,
-            "history_gamma_b": history_gamma_b,
-            "history_mean_log_gamma": history_mean_log_gamma,
-            "history_mean_haplo": history_mean_haplo,
-            "history_mean_cluster": history_mean_cluster,
-        }
-    )
+    if record_history:
+        dict_result.update(
+            {
+                "exit_message": message,
+                "exitflag": exitflag,
+                "n_iterations": iter,
+                "converged": converged,
+                "elbo": elbo,
+                "history_mean_log_theta": history_mean_log_theta,
+                "history_elbo": history_elbo,
+                "history_alpha": history_alpha,
+                "history_mean_log_pi": history_mean_log_pi,
+                "history_theta_c": history_theta_c,
+                "history_alpha": history_alpha,
+                "history_theta_d": history_theta_d,
+                "history_mean_log_theta": history_mean_log_theta,
+                "history_gamma_a": history_gamma_a,
+                "history_gamma_b": history_gamma_b,
+                "history_mean_log_gamma": history_mean_log_gamma,
+                "history_mean_haplo": history_mean_haplo,
+                "history_mean_cluster": history_mean_cluster,
+            }
+        )
+    else:
+        dict_result.update(
+            {
+                "exit_message": message,
+                "exitflag": exitflag,
+                "n_iterations": iter,
+                "converged": converged,
+                "elbo": elbo,
+                "history_elbo": history_elbo,
+            }
+        )
+
 
     # dict_result.update(state_curr_dict)
     summary = analyze_results.summarize_results(

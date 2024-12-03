@@ -138,7 +138,7 @@ def run_dpm(run_setting):
     """run the dirichlet process clustering
     """
 
-    filein, j, a, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold = run_setting
+    filein, j, a, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history = run_setting
 
     ref_in = filein.split('.reads.')[0] + str('.ref.fas')
     fname_qualities = filein.split('.reads.')[0] + str('.qualities.npy')
@@ -187,7 +187,8 @@ def run_dpm(run_setting):
                      alpha0=float(a),
                      alphabet = 'ACGT-',
                      unique_modus = unique_modus,
-                     convergence_threshold = inference_convergence_threshold
+                     convergence_threshold = inference_convergence_threshold,
+                     record_history = record_history
                      )
 
     elif inference_type == 'learn_error_params':
@@ -198,8 +199,9 @@ def run_dpm(run_setting):
                      K=int(n_max_haplotypes),
                      alpha0=float(a),
                      alphabet = 'ACGT-',
-                     unique_modus = unique_modus
+                     unique_modus = unique_modus,
                      #convergence_threshold = inference_convergence_threshold,
+                     record_history = record_history
                      )
     logging.debug('Finished sampler')
 
@@ -296,7 +298,7 @@ def base_break(baselist):
     return rc
 
 
-def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold):
+def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history, reuse_files):
     """Return windows to run on diri_sampler."""
 
     rn_list = []
@@ -307,10 +309,13 @@ def win_to_run(alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, un
 
     for f1 in file1:
         winFile, chr1, beg, end, cov = f1.rstrip().split('\t')
-        output_name = winFile.split("/")[-1][:-4] + "-" + "cor.fas"
-        if not os.path.isfile(output_name):
-            j = min(300_000, int(cov) * 15)
-            rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold))
+        j = min(300_000, int(cov) * 15)
+        output_name = winFile.split(".fas")[0] + "-" + "cor.fas"
+        if not (reuse_files and os.path.isfile(output_name)):
+            rn_list.append((winFile, j, alpha_w, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history))
+        else:
+            logging.info(f'[file already exits] Use {output_name} generated on {time.ctime(Path(output_name).stat().st_mtime)}')
+
 
     del end
     del(beg, chr1)
@@ -405,6 +410,8 @@ def main(args):
     extended_window_mode = args.extended_window_mode
     exclude_non_var_pos_threshold = args.exclude_non_var_pos_threshold
     win_min_ext = args.win_min_ext
+    reuse_files = args.reuse_files
+    record_history = args.record_history
 
     logging.info(' '.join(sys.argv))
 
@@ -432,53 +439,57 @@ def main(args):
     # run b2w
 
     logging.info('starting b2w')
-    try:
-        if ignore_indels == True:
-            raise NotImplementedError('This argument was deprecated.')
-        b2w_logging((in_bam, in_fasta, win_length, incr, win_min_ext,
-            max_coverage, cov_thrd, region, ignore_indels))
+    if not (reuse_files and os.path.isfile(f"coverage.txt")):
+        try:
+            if ignore_indels == True:
+                raise NotImplementedError('This argument was deprecated.')
+            b2w_logging((in_bam, in_fasta, win_length, incr, win_min_ext,
+                max_coverage, cov_thrd, region, ignore_indels))
 
-        if path_insert_file == None and region == "": # special case if no region defined
-            samfile = pysam.AlignmentFile(
+            if path_insert_file == None and region == "": # special case if no region defined
+                samfile = pysam.AlignmentFile(
+                    in_bam,
+                    "r", # auto-detect bam/cram (rc)
+                    reference_filename=in_fasta,
+                    threads=1
+                )
+                if samfile.nreferences != 1:
+                    raise NotImplementedError("There are multiple references in this alignment file.")
+                strategy = tiling.EquispacedTilingStrategy(
+                    f"{samfile.references[0]}:1-{samfile.lengths[0]}",
+                    win_length,
+                    incr,
+                    False,
+                    True
+                )
+            elif path_insert_file == None:
+                strategy = tiling.EquispacedTilingStrategy(region, win_length, incr, True)
+            else:
+                strategy = tiling.PrimerTilingStrategy(path_insert_file)
+                if region != "":
+                    logging.warn(f"region is set to {region} but is not used with this tiling strategy")
+
+            logging.info(f"Using tiling strategy: {type(strategy).__name__}")
+
+            b2w.build_windows(
                 in_bam,
-                "r", # auto-detect bam/cram (rc)
-                reference_filename=in_fasta,
-                threads=1
+                strategy,
+                win_min_ext,
+                max_coverage,
+                cov_thrd,
+                in_fasta,
+                extended_window_mode=extended_window_mode,
+                exclude_non_var_pos_threshold=exclude_non_var_pos_threshold,
+                maxthreads=maxthreads,
+                reuse_files=reuse_files
             )
-            if samfile.nreferences != 1:
-                raise NotImplementedError("There are multiple references in this alignment file.")
-            strategy = tiling.EquispacedTilingStrategy(
-                f"{samfile.references[0]}:1-{samfile.lengths[0]}",
-                win_length,
-                incr,
-                False,
-                True
-            )
-        elif path_insert_file == None:
-            strategy = tiling.EquispacedTilingStrategy(region, win_length, incr, True)
-        else:
-            strategy = tiling.PrimerTilingStrategy(path_insert_file)
-            if region != "":
-                logging.warn(f"region is set to {region} but is not used with this tiling strategy")
+            logging.info('finished b2w')
 
-        logging.info(f"Using tiling strategy: {type(strategy).__name__}")
-
-        b2w.build_windows(
-            in_bam,
-            strategy,
-            win_min_ext,
-            max_coverage,
-            cov_thrd,
-            in_fasta,
-            extended_window_mode=extended_window_mode,
-            exclude_non_var_pos_threshold=exclude_non_var_pos_threshold,
-            maxthreads=maxthreads
-        )
-        logging.info('finished b2w')
-
-    except Exception as e:
-        logging.debug(e)
-        sys.exit('b2w run not successful')
+        except Exception as e:
+            logging.debug(e)
+            sys.exit('b2w run not successful')
+    else:
+        logging.info(f'[file already exits] Use coverage.txt generated on {time.ctime(Path("coverage.txt").stat().st_mtime)}')
 
     aligned_reads = parse_aligned_reads('reads.fas')
     if len(aligned_reads) == 0:
@@ -502,7 +513,7 @@ def main(args):
     # Now the windows and the error correction #
     ############################################
 
-    runlist = win_to_run(alpha, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold)
+    runlist = win_to_run(alpha, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history, reuse_files)
     logging.info('will run on %d windows', len(runlist))
     # run diri_sampler on all available processors but one
     max_proc = max(cpu_count() - 1, 1)
@@ -533,7 +544,7 @@ def main(args):
     # parse corrected reads
     proposed = {}
     for i in runlist:
-        winFile, j, a, s, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold = i
+        winFile, j, a, s, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history = i
         del a  # in future alpha might be different on each window
         del s
         # greedy re match to handle situation where '.' or '-' appears in the

@@ -33,8 +33,9 @@ def main(
     K,
     alpha0,
     alphabet="ACGT-",
-    unique_modus=False,
+    unique_modus=True,
     convergence_threshold=1e-03,
+    record_history=False,
 ):
 
     window_id = freads_in.split("/")[-1][:-4]  # freads_in is absolute path
@@ -46,7 +47,7 @@ def main(
     reference_binary, ref_id = preparation.load_reference_seq(fref_in, alphabet)
 
     reads_list, qualities = preparation.load_fasta_and_qualities(
-        freads_in, fname_qualities, alphabet, False
+        freads_in, fname_qualities, alphabet, unique_modus
     )
     reads_seq_binary, reads_weights = preparation.reads_list_to_array(reads_list)
     reads_log_error_proba = preparation.compute_reads_log_error_proba(
@@ -65,7 +66,8 @@ def main(
             reads_log_error_proba,
             n_starts,
             output_name,
-            convergence_threshold
+            convergence_threshold,
+            record_history
         )
 
     else:
@@ -82,6 +84,7 @@ def main(
                 0,
                 output_name,
                 convergence_threshold,
+                record_history
             )
         ]
 
@@ -105,20 +108,13 @@ def main(
     exit_meassage = sorted_results[0][1]["exit_message"]
     logging.info("CAVI termination " + str(exit_meassage))
 
-    # with open(output_name + "all_results.json", "w") as f:
-    #     json.dump(sorted_results[0][1], f, cls=NumpyEncoder)
+    if record_history:
+        with open(output_name + "all_results.pkl", "wb") as f2:
+            pickle.dump(sorted_results, f2)
 
-    with open(output_name + "all_results.pkl", "wb") as f2:
-        pickle.dump(sorted_results, f2)
-
-    # TODO: Would be nicer to use json dump.
-    # import json
-    # with open(output_name + "all_results.pkl", "wb") as fp:
-    #    json.dump(sorted_results, fp)
-
-    logging.info(
-        "Results dicts of all runs written to " + output_name + "all_results.pkl"
-    )
+        logging.info(
+            "Results dicts of all runs written to " + output_name + "all_results.pkl"
+        )
 
     state_curr_dict = result_list[best_run_idx][0]
 

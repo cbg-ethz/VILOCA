@@ -27,22 +27,31 @@ def cleanup(base_files):
     run(base_files)
 
 def test_e2e_shorah():
+    cwd_test_e2e = "./data_1/test_e2e_shorah"
+    # Check if the directory exists, if not, create it
+    if not os.path.exists(cwd_test_e2e):
+        os.makedirs(cwd_test_e2e)
+
     original = subprocess.run(
-        "./shotgun_test.sh", shell=True, check=True, cwd=cwd
+        "../shotgun_test.sh", shell=True, check=True, cwd=cwd_test_e2e
     )
     assert original.returncode == 0
     assert os.path.isfile(os.path.join(cwd, f_path)) == False
 
     assert filecmp.cmp(
         "./data_1/test.csv",
-        "./data_1/work/snv/SNVs_0.010000_final.csv",
+        "./data_1/test_e2e_shorah/work/snv/SNVs_0.010000_final.csv",
         shallow=False
     )
 
 def test_e2e_shorah_with_extended_window_mode():
+    cwd_test_e2e_extended_window_mode = "./data_1/test_e2e_extended_window_modee"
+    # Check if the directory exists, if not, create it
+    if not os.path.exists(cwd_test_e2e_extended_window_mode):
+        os.makedirs(cwd_test_e2e_extended_window_mode)
     p = subprocess.run(
-        "./shotgun_test.sh --extended_window_mode", shell=True, check=True, cwd=cwd
+        "../shotgun_test.sh --extended_window_mode", shell=True, check=True, cwd=cwd_test_e2e_extended_window_mode
     )
 
     assert p.returncode == 0
-    assert os.path.isfile(os.path.join(cwd, f_path)) == True
+    assert os.path.isfile(os.path.join(cwd_test_e2e_extended_window_mode, f_path)) == True
