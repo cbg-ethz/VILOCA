@@ -308,27 +308,6 @@ def getSNV(extended_window_mode, exclude_non_var_pos_threshold, working_dir, win
                     )
                     + "\n"
                 )
-"""
-            # write co-occurring mutation to file
-            for SNV_id, val in sorted(snp.items()):
-                snv_dict = {
-                    "winFile": winFile,
-                    "haplotype_id": val.haplotype_id,
-                    "chrom": chrom,
-                    "start": beg,
-                    "end": end,
-                    "coverage": cov,
-                    "position": val.pos,
-                    "ref": val.ref,
-                    "var": val.var,
-                    "freq": val.freq,
-                    "support": val.support,
-                }
-
-                tmp.append(snv_dict)
-
-    pd.DataFrame(tmp).to_csv("cooccurring_mutations.csv")
-"""
 
     return all_snp
 
