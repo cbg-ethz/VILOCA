@@ -69,7 +69,7 @@ There are several parameters available:
 
 `coverage.txt` List of each local region with start and end positions, and number of reads considered in the region.
 
-`cooccurring_mutations.csv` All mutation calls including the information on which haplotype it occurred on.
+`cooccurring_mutations.csv` The file contains one row per occurrence of a mutation in each haplotype, listing all haplotypes where a mutation is present.
 
 ## Development/CI with Docker
 The following command in the root directory will let you interact with the project locally through Docker.
