@@ -308,7 +308,7 @@ def getSNV(extended_window_mode, exclude_non_var_pos_threshold, working_dir, win
                     )
                     + "\n"
                 )
-
+"""
             # write co-occurring mutation to file
             for SNV_id, val in sorted(snp.items()):
                 snv_dict = {
@@ -328,6 +328,7 @@ def getSNV(extended_window_mode, exclude_non_var_pos_threshold, working_dir, win
                 tmp.append(snv_dict)
 
     pd.DataFrame(tmp).to_csv("cooccurring_mutations.csv")
+"""
 
     return all_snp
 
@@ -423,6 +424,144 @@ def BH(p_vals, n):
         q_vals_l.append((bh, p[1]))
     return q_vals_l
 
+## write cooccurring_mutations mutations file
+def __mutations_in_haplotype(ref: str, seq: str, start, av, post, chrom, haplotype_id):
+    """
+    This function is adapted from _compare_ref_to_read.
+    """
+
+    assert len(ref) == len(seq)
+
+    pos = start
+    tot_snv = 0
+    aux_del = -1
+
+    tmp = [] # collect dicts of mutations on haplotype
+
+    change_in_reference_space = 0
+
+    for idx, v in enumerate(ref):  # iterate on the reference
+
+        if v != seq[idx]:  # SNV detected, save it
+            assert not (v != "X" and seq[idx] == "X")
+
+            if seq[idx] == "-" or v == "X": # TODO what is if window starts like that?
+                char = "-"
+                relevant_seq = seq
+                secondary_seq = ref
+                if v == "X":
+                    char = "X"
+                    relevant_seq = ref
+                    secondary_seq = seq
+                # Avoid counting multiple times a long deletion in the same haplotype
+                if idx > aux_del:
+                    tot_snv += 1
+                    # Check for gap characters and get the deletion
+                    # length
+                    del_len = _deletion_length(relevant_seq[idx:], char)
+                    aux_del = idx + del_len
+
+                    pos_prev = pos - 1
+                    num_double_X = _count_double_X(ref, seq, pos_prev - start)
+                    secondary_seq = secondary_seq[pos_prev - start - num_double_X] + secondary_seq[
+                        (pos - start) : (pos_prev + del_len - start + 1)
+                    ] # TODO pos_prev - 1 - beg might be out of range
+
+                    # add deletion to list
+                    snv_dict = {
+                            "haplotype_id": haplotype_id,
+                            "chrom": chrom,
+                            "start": start,
+                            "position": pos_prev - change_in_reference_space,
+                            "ref": ref[pos_prev - start - num_double_X] if v =="X" else secondary_seq,
+                            "var": secondary_seq if v =="X" else relevant_seq[pos_prev - start - num_double_X],
+                            "reads": av,
+                            "support": post,
+                        }
+
+                    tmp.append(snv_dict)
+            else:
+                tot_snv += 1
+
+                snv_dict = {
+                            "haplotype_id": haplotype_id,
+                            "chrom": chrom,
+                            "start": start,
+                            "position": pos - change_in_reference_space,
+                            "ref": v,
+                            "var": seq[idx],
+                            "reads": av,
+                            "support": post,
+                            #"support_normalize": post * av, # TODO Lara: not only post ??
+                        }
+
+                tmp.append(snv_dict)
+
+        if v == "X":
+            change_in_reference_space += 1
+
+        pos += 1
+
+    return tmp
+
+def get_cooccuring_muts_haplo_df(haplo_filename, ref_filename, beg, end, chrom):
+
+    reads = 0.0
+    start = int(beg)
+    max_snv = -1
+
+    tmp_df = []
+
+    with open(haplo_filename, "rt") as window, open(ref_filename, "rt") as ref:
+        d = dict([[s.id, str(s.seq).upper()] for s in SeqIO.parse(ref, "fasta")])
+        refSlice = d[chrom]
+
+        for s in SeqIO.parse(window, "fasta"):
+            seq = str(s.seq).upper()
+            haplotype_id = str(s.id.split("|")[0]) + "-" + beg + "-" + end
+            match_obj = search(r"posterior=(.*)\s*ave_reads=(.*)", s.description)
+            post, av = float(match_obj.group(1)), float(match_obj.group(2))
+            reads += av
+
+            tot_snv = __mutations_in_haplotype(
+                refSlice, seq, start, av, post, chrom, haplotype_id
+            )
+            if tot_snv == []:
+                # haplotype is reference
+                tot_snv = [{
+                            "haplotype_id": "reference"+"-" + beg + "-" + end,
+                            "chrom": chrom,
+                            "start": start,
+                            "reads": av,
+                            "support": post,
+                        }]
+
+            tmp_df.append(pd.DataFrame(tot_snv))
+
+    if len(tmp_df)>0:
+        df = pd.concat(tmp_df)
+        df['coverage']= reads
+    else:
+        df = pd.DataFrame(columns=['coverage'])
+
+    return df
+
+def write_cooccuring_muts_file():
+
+    tmp_df =[]
+
+    # iterate over haplotype files
+    with open("coverage.txt") as cov_file:
+        for line in cov_file:
+            # winFile, chrom, beg, end, cov
+            _, chrom, beg, end, _ = line.rstrip().split("\t")
+
+            file_stem = "w-%s-%s-%s" % (chrom, beg, end)
+            haplo_filename = os.path.join(working_dir, "haplotypes", file_stem + ".reads-support.fas")
+            ref_name = os.path.join(working_dir, "haplotypes", file_stem + ".ref.fas")
+            tmp_df.append(get_cooccuring_muts_df(fname_haplo, fname_ref, beg,end,chrom))
+
+    pd.concat(tmp_df).to_csv("cooccurring_mutations.csv")
 
 def main(args):
     """main code"""
