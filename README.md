@@ -64,12 +64,14 @@ There are several parameters available:
 
 `--windowsize`: In case no insert file is provided, the genome is tiled into uniform local regions. `windowsize` determines the length of those local regions. It should be of roughly the length of the reads. This is also the length of the haplotypes that are produced.
 
+`-p`: Posterior threshold (default: 0.9) when calling variants from haplotypes.
+
 ### Output
 `haplotypes` This directory contains the reconstructed local haplotypes as separate fasta files per local region.
 
 `coverage.txt` List of each local region with start and end positions, and number of reads considered in the region.
 
-`cooccurring_mutations.csv` The file contains one row per occurrence of a mutation in each haplotype, listing all haplotypes where a mutation is present.
+`cooccurring_mutations.csv` The file contains one row per occurrence of a mutation in each haplotype, listing all haplotypes where a mutation is present. Note that the posterior threshold is not applied here. 
 
 ## Development/CI with Docker
 The following command in the root directory will let you interact with the project locally through Docker.
