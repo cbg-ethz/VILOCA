@@ -555,8 +555,8 @@ def main(args):
             _, chrom, beg, end, _ = line.rstrip().split("\t")
 
             file_stem = "w-%s-%s-%s" % (chrom, beg, end)
-            haplo_filename = os.path.join(working_dir, "haplotypes", file_stem + ".reads-support.fas")
-            ref_name = os.path.join(working_dir, "haplotypes", file_stem + ".ref.fas")
+            haplo_filename = os.path.join(working_dir, file_stem + ".reads-support.fas")
+            ref_name = os.path.join(working_dir, file_stem + ".ref.fas")
             tmp_df.append(get_cooccuring_muts_haplo_df(haplo_filename, ref_name, beg,end,chrom))
     pd.concat(tmp_df).to_csv("cooccurring_mutations.csv")
     # finish  write: "cooccurring_mutations.csv"
