@@ -525,23 +525,6 @@ def get_cooccuring_muts_haplo_df(haplo_filename, ref_filename, beg, end, chrom):
 
     return df
 
-def write_cooccuring_muts_file():
-
-    tmp_df =[]
-
-    # iterate over haplotype files
-    with open("coverage.txt") as cov_file:
-        for line in cov_file:
-            # winFile, chrom, beg, end, cov
-            _, chrom, beg, end, _ = line.rstrip().split("\t")
-
-            file_stem = "w-%s-%s-%s" % (chrom, beg, end)
-            haplo_filename = os.path.join(working_dir, "haplotypes", file_stem + ".reads-support.fas")
-            ref_name = os.path.join(working_dir, "haplotypes", file_stem + ".ref.fas")
-            tmp_df.append(get_cooccuring_muts_df(fname_haplo, fname_ref, beg,end,chrom))
-
-    pd.concat(tmp_df).to_csv("cooccurring_mutations.csv")
-
 def main(args):
     """main code"""
 
@@ -562,6 +545,20 @@ def main(args):
     assert os.path.isdir(args.working_dir) or args.working_dir == ""
 
     logging.info(str(inspect.getfullargspec(main)))
+
+    # write: "cooccurring_mutations.csv"
+    tmp_df =[]
+    # iterate over haplotype files
+    with open("coverage.txt") as cov_file:
+        for line in cov_file:
+            # winFile, chrom, beg, end, cov
+            _, chrom, beg, end, _ = line.rstrip().split("\t")
+
+            file_stem = "w-%s-%s-%s" % (chrom, beg, end)
+            haplo_filename = os.path.join(working_dir, "haplotypes", file_stem + ".reads-support.fas")
+            ref_name = os.path.join(working_dir, "haplotypes", file_stem + ".ref.fas")
+            tmp_df.append(get_cooccuring_muts_df(fname_haplo, fname_ref, beg,end,chrom))
+    pd.concat(tmp_df).to_csv("cooccurring_mutations.csv")
 
     # snpD_m is the file with the 'consensus' SNVs (from different windows)
     logging.debug("now parsing SNVs")
