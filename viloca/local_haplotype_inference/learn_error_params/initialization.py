@@ -72,7 +72,7 @@ def count_mis_and_matches_wrt_ref(reads_list, reference_table):
     return matches, mismatch
 
 
-def init_mean_cluster(n_clusters, n_reads, alpha0):
+def init_mean_cluster(n_clusters, n_reads, alpha0, rng):
 
     mean_z = rng.dirichlet(np.ones(n_clusters) * alpha0, size=n_reads)
 
