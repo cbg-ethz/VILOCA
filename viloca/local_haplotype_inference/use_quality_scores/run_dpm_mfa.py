@@ -3,9 +3,8 @@
 import sys
 import os
 import logging
-#import json
-#import numpy as np
 import pickle
+from numpy.random import default_rng
 
 # my python-scripts
 from . import preparation
@@ -36,6 +35,7 @@ def main(
     unique_modus=True,
     convergence_threshold=1e-03,
     record_history=False,
+    seed=27,
 ):
 
     window_id = freads_in.split("/")[-1][:-4]  # freads_in is absolute path
@@ -67,7 +67,8 @@ def main(
             n_starts,
             output_name,
             convergence_threshold,
-            record_history
+            record_history,
+            seed
         )
 
     else:
@@ -84,7 +85,8 @@ def main(
                 0,
                 output_name,
                 convergence_threshold,
-                record_history
+                record_history,
+                default_rng(seed=seed) 
             )
         ]
 

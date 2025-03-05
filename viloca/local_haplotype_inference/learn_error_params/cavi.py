@@ -34,11 +34,13 @@ def multistart_cavi(
     reads_weights,
     n_starts,
     output_dir,
-    record_history
+    record_history,
+    seed
 ):
 
     pool = mp.Pool(mp.cpu_count())
     for start in range(n_starts):
+        rng = default_rng(seed=seed+start)
         pool.apply_async(
             run_cavi,
             args=(
@@ -52,7 +54,8 @@ def multistart_cavi(
                 reads_weights,
                 start,
                 output_dir,
-                record_history
+                record_history,
+                rng
             ),
             callback=collect_result,
         )
@@ -74,7 +77,8 @@ def run_cavi(
     reads_weights,
     start_id,
     output_dir,
-    record_history
+    record_history,
+    rng
 ):
 
     """
@@ -92,7 +96,7 @@ def run_cavi(
     history_elbo = []
 
     state_init_dict = initialization.draw_init_state(
-        K, alpha0, alphabet, reads_list, reference_binary
+        K, alpha0, alphabet, reads_list, reference_binary,rng
     )
     state_init_dict.update(
         {

@@ -34,11 +34,13 @@ def multistart_cavi(
     n_starts,
     output_dir,
     convergence_threshold,
-    record_history
+    record_history,
+    seed
 ):
 
     pool = mp.Pool(mp.cpu_count())
     for start in range(n_starts):
+        rng = default_rng(seed=seed+start)
         pool.apply_async(
             run_cavi,
             args=(
@@ -53,7 +55,8 @@ def multistart_cavi(
                 start,
                 output_dir,
                 convergence_threshold,
-                record_history
+                record_history,
+                rng
             ),
             callback=collect_result,
         )
@@ -77,6 +80,7 @@ def run_cavi(
     output_dir,
     convergence_threshold,
     record_history,
+    rng
 ):
     """
     Runs cavi (coordinate ascent variational inference).
@@ -90,7 +94,7 @@ def run_cavi(
     }
 
     state_init_dict = initialization.draw_init_state(
-        n_cluster, alpha0, alphabet, reads_list, reference_binary
+        n_cluster, alpha0, alphabet, reads_list, reference_binary, rng
     )
     state_init_dict.update(
         {

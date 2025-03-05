@@ -4,6 +4,7 @@ import sys
 import os
 import pickle
 import logging
+from numpy.random import default_rng
 
 # my python-scripts
 from . import preparation
@@ -29,7 +30,7 @@ def gzip_file(f_name):
     return f_out.name
 
 
-def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=True, record_history=False):
+def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", unique_modus=True, record_history=False, seed=27):
 
     window_id = freads_in.split("/")[-1][:-4]  # freads_in is absolute path
 
@@ -54,6 +55,7 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
             reads_weights,
             n_starts,
             output_name,
+            seed
         )
 
     else:
@@ -68,6 +70,7 @@ def main(freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet="ACGT-", 
             reads_weights,
             0,
             output_name,
+            default_rng(seed=seed)
         )]
 
     logging.info("len(result_list) " + str(len(result_list)))

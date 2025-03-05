@@ -3,7 +3,7 @@ from scipy.special import digamma
 from . import update_eqs as update_eqs
 
 
-def draw_init_state(n_clusters, alpha0, alphabet, reads_list, reference_binary):
+def draw_init_state(n_clusters, alpha0, alphabet, reads_list, reference_binary, rng):
 
     genome_length = reads_list[0].seq_binary.shape[0]
     n_reads = len(reads_list)
@@ -19,16 +19,16 @@ def draw_init_state(n_clusters, alpha0, alphabet, reads_list, reference_binary):
     matches = 10
     mismatch = 2
 
-    k = np.random.uniform(low=0.5, high=1.0, size=2)
+    k = rng.uniform(low=0.5, high=1.0, size=2)
     a, b = matches * k[0], mismatch * k[1]
 
-    gamma0 = np.random.beta(a, b)
+    gamma0 = rng.beta(a, b)
     mean_log_gamma = np.log(gamma0), np.log(1 - gamma0)
     mean_h = init_mean_haplo(
         n_clusters, genome_length, size_alphabet, mean_log_gamma, reference_binary
     )
 
-    mean_z = init_mean_cluster(n_clusters, n_reads, alpha0)
+    mean_z = init_mean_cluster(n_clusters, n_reads, alpha0, rng)
 
     state_init_dict = dict(
         {
@@ -64,7 +64,7 @@ def count_mis_and_matches_wrt_ref(reads_list, reference_table):
 
 def init_mean_cluster(n_clusters, n_reads, alpha0):
 
-    mean_z = np.random.dirichlet(np.ones(n_clusters) * alpha0, size=n_reads)
+    mean_z = rng.dirichlet(np.ones(n_clusters) * alpha0, size=n_reads)
 
     if np.any(np.isnan(mean_z)):
         alpha_new = alpha0 * 10

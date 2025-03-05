@@ -188,7 +188,8 @@ def run_dpm(run_setting):
                      alphabet = 'ACGT-',
                      unique_modus = unique_modus,
                      convergence_threshold = inference_convergence_threshold,
-                     record_history = record_history
+                     record_history = record_history,
+                     seed=seed,
                      )
 
     elif inference_type == 'learn_error_params':
@@ -201,7 +202,8 @@ def run_dpm(run_setting):
                      alphabet = 'ACGT-',
                      unique_modus = unique_modus,
                      #convergence_threshold = inference_convergence_threshold,
-                     record_history = record_history
+                     record_history = record_history,
+                     seed=seed,
                      )
     logging.debug('Finished sampler')
 
