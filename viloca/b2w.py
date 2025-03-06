@@ -16,13 +16,13 @@ def _write_to_file(lines, file_name):
 def _calc_via_pileup(samfile, reference_name, maximum_reads):
     budget = dict()
     max_ins_at_pos = dict()
-    indel_map = set() # TODO quick fix because pileup created duplicates; why?
+    indel_map = set()
 
     for pileupcolumn in samfile.pileup(
         reference_name,
-        max_depth=1_000_000, # TODO big enough?
+        max_depth=1_000_000,
         stepper="nofilter",
-        multiple_iterators=False, # TODO true makes faster?
+        multiple_iterators=False,
         ignore_overlaps=False,
         adjust_capq_threshold=0,
         ignore_orphans=False,
@@ -30,38 +30,28 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
 
         budget[pileupcolumn.reference_pos] = min(
             pileupcolumn.nsegments,
-            maximum_reads-1 # minus 1 because because maximum_reads is exclusive
+            maximum_reads - 1
         )
 
-        max_at_this_pos = 0
-        """
-        for pileupread in pileupcolumn.pileups:
+        pileup_indels = np.array([p.indel for p in pileupcolumn.pileups])
+        pileup_is_del = np.array([p.is_del for p in pileupcolumn.pileups])
+        indel_mask = np.logical_or(pileup_indels > 0, pileup_is_del)
 
-            #assert pileupread.indel >= 0, "Pileup read indel is negative" TODO
+        if np.any(indel_mask):
+            indel_data = np.array([(
+                p.alignment.query_name,
+                p.alignment.reference_start,
+                hashlib.sha1(p.alignment.cigarstring.encode()).hexdigest(),
+                pileupcolumn.reference_pos,
+                p.indel,
+                p.is_del
+            ) for p in np.array(pileupcolumn.pileups)[indel_mask]])
+            indel_map.update(map(tuple, indel_data))
 
-            if pileupread.indel > 0 or pileupread.is_del:
-                indel_map.add((
-                    pileupread.alignment.query_name, # TODO is unique?
-                    pileupread.alignment.reference_start, # TODO is unique?
-                    hashlib.sha1(pileupread.alignment.cigarstring.encode()).hexdigest(),
-                    #hash(pileupread.alignment.cigarstring), # TODO is unique?
-                    pileupcolumn.reference_pos,
-                    pileupread.indel,
-                    pileupread.is_del
-                ))
-            if pileupread.indel > max_at_this_pos:
-                max_at_this_pos = pileupread.indel
-        """
-        indel_mask = np.logical_or(
-            np.array([p.indel for p in pileupcolumn.pileups]) > 0,
-            np.array([p.is_del for p in pileupcolumn.pileups])
-        )
-        indel_data = np.array([(p.alignment.query_name, p.alignment.reference_start, hashlib.sha1(p.alignment.cigarstring.encode()).hexdigest(), pileupcolumn.reference_pos, p.indel, p.is_del) for p in pileupcolumn.pileups])[indel_mask]
-        indel_map.update(map(tuple, indel_data))
-                if max_at_this_pos > 0:
-                    max_ins_at_pos[pileupcolumn.reference_pos] = max_at_this_pos
+        max_at_this_pos = np.max(pileup_indels)
+        if max_at_this_pos > 0:
+            max_ins_at_pos[pileupcolumn.reference_pos] = max_at_this_pos
 
-    # ascending reference_pos are necessary for later steps
     indel_map = sorted(indel_map, key=lambda tup: tup[3])
 
     return budget, indel_map, max_ins_at_pos
