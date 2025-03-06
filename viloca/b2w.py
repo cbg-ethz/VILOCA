@@ -34,6 +34,7 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
         )
 
         max_at_this_pos = 0
+        """
         for pileupread in pileupcolumn.pileups:
 
             #assert pileupread.indel >= 0, "Pileup read indel is negative" TODO
@@ -50,9 +51,15 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
                 ))
             if pileupread.indel > max_at_this_pos:
                 max_at_this_pos = pileupread.indel
-
-        if max_at_this_pos > 0:
-            max_ins_at_pos[pileupcolumn.reference_pos] = max_at_this_pos
+        """
+        indel_mask = np.logical_or(
+            np.array([p.indel for p in pileupcolumn.pileups]) > 0,
+            np.array([p.is_del for p in pileupcolumn.pileups])
+        )
+        indel_data = np.array([(p.alignment.query_name, p.alignment.reference_start, hashlib.sha1(p.alignment.cigarstring.encode()).hexdigest(), pileupcolumn.reference_pos, p.indel, p.is_del) for p in pileupcolumn.pileups])[indel_mask]
+        indel_map.update(map(tuple, indel_data))
+                if max_at_this_pos > 0:
+                    max_ins_at_pos[pileupcolumn.reference_pos] = max_at_this_pos
 
     # ascending reference_pos are necessary for later steps
     indel_map = sorted(indel_map, key=lambda tup: tup[3])
