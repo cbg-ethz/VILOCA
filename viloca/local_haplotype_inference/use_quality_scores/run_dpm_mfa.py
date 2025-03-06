@@ -15,14 +15,6 @@ logging.basicConfig(
     filename="viloca.log", encoding="utf-8", level=logging.INFO
 )
 
-
-# class NumpyEncoder(json.JSONEncoder):
-#     def default(self, obj):
-#         if isinstance(obj, np.ndarray):
-#             return obj.tolist()
-#         return json.JSONEncoder.default(self, obj)
-
-
 def main(
     freads_in,
     fref_in,
@@ -43,13 +35,8 @@ def main(
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # Read in reads
     reference_binary, ref_id = preparation.load_reference_seq(fref_in, alphabet)
-
-    reads_list, qualities = preparation.load_fasta_and_qualities(
-        freads_in, fname_qualities, alphabet, unique_modus
-    )
-    reads_seq_binary, reads_weights = preparation.reads_list_to_array(reads_list)
+    reads_seq_binary, reads_weights, qualities, read_mapping = preparation.load_and_process_reads(freads_in, fname_qualities, alphabet, unique_modus)
     reads_log_error_proba = preparation.compute_reads_log_error_proba(
         qualities, reads_seq_binary, len(alphabet)
     )
@@ -60,7 +47,6 @@ def main(
             alpha0,
             alphabet,
             reference_binary,
-            reads_list,
             reads_seq_binary,
             reads_weights,
             reads_log_error_proba,
@@ -78,7 +64,6 @@ def main(
                 alpha0,
                 alphabet,
                 reference_binary,
-                reads_list,
                 reads_seq_binary,
                 reads_weights,
                 reads_log_error_proba,
@@ -86,14 +71,13 @@ def main(
                 output_name,
                 convergence_threshold,
                 record_history,
-                default_rng(seed=seed) 
+                default_rng(seed=seed),
+                seed
             )
         ]
 
     logging.info("reference " + fref_in)
     logging.info("reads " + freads_in)
-    logging.info("lenght of sequences " + str(reads_list[0].seq_binary.shape[0]))
-    logging.info("number of reads " + str(len(reads_list)))
 
     # Find best run
     sort_elbo = [
@@ -125,7 +109,7 @@ def main(
         alphabet,
         reads_seq_binary,
         reads_weights,
-        reads_list,
+        read_mapping,
         reads_log_error_proba,
         reference_binary,
     )
@@ -135,19 +119,20 @@ def main(
     analyze_results.haplotypes_to_fasta(state_curr_dict, output_name + "support.fas")
     analyze_results.correct_reads(state_curr_dict, output_name + "cor.fas")
 
-    # f_best_run = open(output_name+'best_run.txt','w')
-    # f_best_run.write(str(max_idx))
-    # f_best_run.close()
-
-
+###
+### example for testing
+###
 if __name__ == "__main__":
     main(
-        sys.argv[1],
-        sys.argv[2],
-        sys.argv[3],
-        int(sys.argv[4]),
-        int(sys.argv[5]),
-        float(sys.argv[6]),
-        sys.argv[7],
+        freads_in="w-rep_a-p0-7210-8009.reads.fas",
+        fref_in="w-rep_a-p0-7210-8009.ref.fas",
+        fname_qualities="w-rep_a-p0-7210-8009.qualities.npy",
+        output_dir='./',
+        n_starts=1,
+        K=100,
+        alpha0=0.0001,
+        alphabet="ACGT-",
+        unique_modus=True,
+        convergence_threshold=1e-03,
+        record_history=False,
     )
-# freads_in, fref_in, output_dir, n_starts, K, alpha0, alphabet = 'ACGT-'

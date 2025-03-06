@@ -1,8 +1,10 @@
 import numpy as np
+import scipy
 import multiprocessing as mp
 from scipy.special import digamma
 from scipy.stats._multivariate import _lnB as lnB
 from scipy.special import betaln
+from numpy.random import default_rng
 
 # my python scripts
 from . import initialization
@@ -27,7 +29,6 @@ def multistart_cavi(
     alpha0,
     alphabet,
     reference_binary,
-    reads_list,
     reads_seq_binary,
     reads_weights,
     reads_log_error_proba,
@@ -48,7 +49,6 @@ def multistart_cavi(
                 alpha0,
                 alphabet,
                 reference_binary,
-                reads_list,
                 reads_seq_binary,
                 reads_weights,
                 reads_log_error_proba,
@@ -56,7 +56,8 @@ def multistart_cavi(
                 output_dir,
                 convergence_threshold,
                 record_history,
-                rng
+                rng,
+                seed+start
             ),
             callback=collect_result,
         )
@@ -72,7 +73,6 @@ def run_cavi(
     alpha0,
     alphabet,
     reference_binary,
-    reads_list,
     reads_seq_binary,
     reads_weights,
     reads_log_error_proba,
@@ -80,21 +80,22 @@ def run_cavi(
     output_dir,
     convergence_threshold,
     record_history,
-    rng
+    rng,
+    seed_number
 ):
     """
     Runs cavi (coordinate ascent variational inference).
     """
-    dict_result = {
-        "run_id": start_id,
-        "n_reads": len(reads_list),
-        "n_cluster": n_cluster,
-        "alpha0": alpha0,
-        "alphabet": alphabet,
-    }
+
+    np.random.seed(seed_number)
+    scipy.random.seed(seed_number)
+
+    genome_length = reads_seq_binary.shape[1]
+    n_reads=reads_seq_binary.shape[0]
+    alphabet_size = reads_seq_binary.shape[2]
 
     state_init_dict = initialization.draw_init_state(
-        n_cluster, alpha0, alphabet, reads_list, reference_binary, rng
+        n_cluster, alpha0, alphabet, genome_length, n_reads, reference_binary, rng
     )
     state_init_dict.update(
         {
@@ -158,7 +159,7 @@ def run_cavi(
                 exit_message = "Error: ELBO is nan."
                 print(exit_message)
                 break
-            elif (history_elbo[-2] > elbo) and np.abs(elbo - history_elbo[-2]) > 1e-08:
+            elif (history_elbo[-2] > elbo) and np.abs(elbo - history_elbo[-2]) > 1e-05:
                 exit_message = "Error: ELBO is decreasing."
                 break
             elif np.abs(elbo - history_elbo[-2]) < convergence_threshold:
@@ -194,6 +195,11 @@ def run_cavi(
                 "converged": converged,
                 "elbo": elbo,
                 "history_elbo": history_elbo,
+                "run_id": start_id,
+                "n_reads": n_reads,
+                "n_cluster": n_cluster,
+                "alpha0": alpha0,
+                "alphabet": alphabet,
             }
         )
     dict_result.update(state_curr_dict)
