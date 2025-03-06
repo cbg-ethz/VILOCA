@@ -2,6 +2,7 @@ import pysam
 import unittest
 import tempfile
 import hashlib
+import os
 
 from viloca.b2w import _calc_via_pileup
 
