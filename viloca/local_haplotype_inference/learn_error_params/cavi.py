@@ -1,6 +1,5 @@
 import numpy as np
 import multiprocessing as mp
-import scipy
 from scipy.special import digamma
 from scipy.stats._multivariate import _lnB as lnB
 from scipy.special import betaln
@@ -89,8 +88,7 @@ def run_cavi(
     Runs cavi (coordinate ascent variational inference).
     """
     np.random.seed(seed_number)
-    scipy.random.seed(seed_number)
-    
+
     dict_result = {
         "run_id": start_id,
         "N": len(reads_list),

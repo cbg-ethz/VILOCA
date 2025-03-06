@@ -1,5 +1,4 @@
 import numpy as np
-import scipy
 import multiprocessing as mp
 from scipy.special import digamma
 from scipy.stats._multivariate import _lnB as lnB
@@ -88,7 +87,6 @@ def run_cavi(
     """
 
     np.random.seed(seed_number)
-    scipy.random.seed(seed_number)
 
     genome_length = reads_seq_binary.shape[1]
     n_reads=reads_seq_binary.shape[0]
