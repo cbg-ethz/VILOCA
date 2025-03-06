@@ -202,10 +202,10 @@ def main():
                                 default=-1, help="Runs exclude non-variable positions mode. Set percentage threshold for exclusion.")
 
     parser_shotgun.add_argument('--reuse_files', action='store_true', dest="reuse_files",
-                                default=-1, help="Enabling this option allows the command line tool to reuse files that were generated in previous runs. When set to true, the tool will check for existing output files and reuse them instead of regenerating the data. This can help improve performance by avoiding redundant file generation processes.")
+                                default=False, help="Enabling this option allows the command line tool to reuse files that were generated in previous runs. When set to true, the tool will check for existing output files and reuse them instead of regenerating the data. This can help improve performance by avoiding redundant file generation processes.")
 
     parser_shotgun.add_argument('--record_history', action='store_true', dest="record_history",
-                                default=-1, help="When enabled, this option saves the history of the parameter values learned during the inference process.")
+                                default=False, help="When enabled, this option saves the history of the parameter values learned during the inference process.")
 
     parser_shotgun.add_argument("--min_windows_coverage", metavar='INT', type=int,
                                 required=False, default=2, dest="min_windows_coverage",
