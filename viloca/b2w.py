@@ -7,6 +7,7 @@ import logging
 from multiprocessing import Process, cpu_count
 import os
 import hashlib
+from collections import defaultdict
 from pathlib import Path
 
 def _write_to_file(lines, file_name):
@@ -14,8 +15,8 @@ def _write_to_file(lines, file_name):
         f.writelines("%s\n" % l for l in lines)
 
 def _calc_via_pileup(samfile, reference_name, maximum_reads):
-    budget = dict()
-    max_ins_at_pos = dict()
+    budget = defaultdict(int)
+    max_ins_at_pos = defaultdict(int)
     indel_map = set()
 
     for pileupcolumn in samfile.pileup(
@@ -28,25 +29,23 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
         ignore_orphans=False,
         min_base_quality=0):
 
-        budget[pileupcolumn.reference_pos] = min(
-            pileupcolumn.nsegments,
-            maximum_reads - 1
-        )
+        budget[pileupcolumn.reference_pos] = min(pileupcolumn.nsegments, maximum_reads - 1)
 
         pileup_indels = np.array([p.indel for p in pileupcolumn.pileups])
         pileup_is_del = np.array([p.is_del for p in pileupcolumn.pileups])
         indel_mask = np.logical_or(pileup_indels > 0, pileup_is_del)
 
         if np.any(indel_mask):
-            indel_data = np.array([(
-                p.alignment.query_name,
-                p.alignment.reference_start,
-                hashlib.sha1(p.alignment.cigarstring.encode()).hexdigest(),
-                pileupcolumn.reference_pos,
-                p.indel,
-                p.is_del
-            ) for p in np.array(pileupcolumn.pileups)[indel_mask]])
-            indel_map.update(map(tuple, indel_data))
+            indel_data = [
+                (p.alignment.query_name,
+                 p.alignment.reference_start,
+                 hashlib.sha1(p.alignment.cigarstring.encode()).hexdigest(),
+                 pileupcolumn.reference_pos,
+                 p.indel,
+                 p.is_del)
+                for p in np.array(pileupcolumn.pileups)[indel_mask]
+            ]
+            indel_map.update(indel_data)
 
         max_at_this_pos = np.max(pileup_indels)
         if max_at_this_pos > 0:
@@ -56,7 +55,123 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
 
     return budget, indel_map, max_ins_at_pos
 
+
+def _calc_via_pileup_old(samfile, reference_name, maximum_reads):
+    budget = dict()
+    max_ins_at_pos = dict()
+    indel_map = set() # TODO quick fix because pileup created duplicates; why?
+
+    for pileupcolumn in samfile.pileup(
+        reference_name,
+        max_depth=1_000_000, # TODO big enough?
+        stepper="nofilter",
+        multiple_iterators=False, # TODO true makes faster?
+        ignore_overlaps=False,
+        adjust_capq_threshold=0,
+        ignore_orphans=False,
+        min_base_quality=0):
+
+        budget[pileupcolumn.reference_pos] = min(
+            pileupcolumn.nsegments,
+            maximum_reads-1 # minus 1 because because maximum_reads is exclusive
+        )
+
+        max_at_this_pos = 0
+        for pileupread in pileupcolumn.pileups:
+
+            #assert pileupread.indel >= 0, "Pileup read indel is negative" TODO
+
+            if pileupread.indel > 0 or pileupread.is_del:
+                indel_map.add((
+                    pileupread.alignment.query_name, # TODO is unique?
+                    pileupread.alignment.reference_start, # TODO is unique?
+                    hashlib.sha1(pileupread.alignment.cigarstring.encode()).hexdigest(),
+                    #hash(pileupread.alignment.cigarstring), # TODO is unique?
+                    pileupcolumn.reference_pos,
+                    pileupread.indel,
+                    pileupread.is_del
+                ))
+
+
+            if pileupread.indel > max_at_this_pos:
+                max_at_this_pos = pileupread.indel
+
+        if max_at_this_pos > 0:
+            max_ins_at_pos[pileupcolumn.reference_pos] = max_at_this_pos
+
+    # ascending reference_pos are necessary for later steps
+    indel_map = sorted(indel_map, key=lambda tup: tup[3])
+
+    return budget, indel_map, max_ins_at_pos
+
 def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[str],
+    read_query_name: str|None, full_read_cigar_hash: str|None, first_aligned_pos,
+    last_aligned_pos, indel_map, max_ins_at_pos,
+    extended_window_mode: bool, insertion_char: str) -> tuple[str, list[int]]:
+
+    assert insertion_char in ["-", "X"], "Illegal char representation insertion"
+
+    all_inserts = defaultdict(int)
+    own_inserts = set()
+    change_in_reference_space_ins = 0
+
+    # Convert lists to numpy arrays for faster operations
+    full_read = np.array(full_read)
+    full_qualities = np.array(full_qualities) if full_qualities is not None else None
+
+    for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
+        if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
+            if indel_len > 0:
+                if not extended_window_mode:
+                    idx = ref_pos + 1 - first_aligned_pos
+                    full_read = np.delete(full_read, slice(idx, idx + indel_len))
+                    if full_qualities is not None:
+                        full_qualities = np.delete(full_qualities, slice(idx, idx + indel_len))
+                else:
+                    own_inserts.add((ref_pos, indel_len))
+                    change_in_reference_space_ins += indel_len
+                    all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
+
+            if is_del == 1:
+                idx = ref_pos - first_aligned_pos + change_in_reference_space_ins
+                full_read = np.insert(full_read, idx, "-")
+                if full_qualities is not None:
+                    full_qualities = np.insert(full_qualities, idx, "2")
+
+        elif extended_window_mode and first_aligned_pos <= ref_pos <= last_aligned_pos and indel_len > 0:
+            all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
+
+    if extended_window_mode:
+        change_in_reference_space = 0
+        own_inserts = sorted(own_inserts)
+        own_inserts_pos, own_inserts_len = zip(*own_inserts) if own_inserts else ([], [])
+
+        for pos in sorted(all_inserts):
+            n = all_inserts[pos]
+            if (pos, n) in own_inserts:
+                change_in_reference_space += n
+                continue
+
+            L = max_ins_at_pos[pos]
+            in_idx = pos + 1 - first_aligned_pos + change_in_reference_space
+            if pos in own_inserts_pos:
+                k = own_inserts_len[own_inserts_pos.index(pos)]
+                L -= k
+                in_idx += k
+
+            full_read = np.insert(full_read, in_idx, [insertion_char] * L)
+            if full_qualities is not None:
+                full_qualities = np.insert(full_qualities, in_idx, ["2"] * L)
+
+            change_in_reference_space += max_ins_at_pos[pos]
+
+    full_read = "".join(full_read)
+    full_qualities = full_qualities.tolist() if full_qualities is not None else None
+
+    return full_read, full_qualities
+
+
+def _build_one_full_read_old(full_read: list[str], full_qualities: list[int]|list[str],
     read_query_name: str|None, full_read_cigar_hash: str|None, first_aligned_pos,
     last_aligned_pos, indel_map, max_ins_at_pos,
     extended_window_mode: bool, insertion_char: str) -> tuple[str, list[int]]:
