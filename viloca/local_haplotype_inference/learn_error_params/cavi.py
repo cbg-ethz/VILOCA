@@ -1,8 +1,10 @@
 import numpy as np
 import multiprocessing as mp
+import scipy
 from scipy.special import digamma
 from scipy.stats._multivariate import _lnB as lnB
 from scipy.special import betaln
+from numpy.random import default_rng
 
 # my python scripts
 from . import initialization
@@ -55,7 +57,8 @@ def multistart_cavi(
                 start,
                 output_dir,
                 record_history,
-                rng
+                rng,
+                seed+start
             ),
             callback=collect_result,
         )
@@ -78,12 +81,16 @@ def run_cavi(
     start_id,
     output_dir,
     record_history,
-    rng
+    rng,
+    seed_number
 ):
 
     """
     Runs cavi (coordinate ascent variational inference).
     """
+    np.random.seed(seed_number)
+    scipy.random.seed(seed_number)
+    
     dict_result = {
         "run_id": start_id,
         "N": len(reads_list),
