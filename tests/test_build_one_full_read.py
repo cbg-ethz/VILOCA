@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 import hashlib
 
-from viloca.b2w import _build_one_full_read
+from viloca.b2w import _build_one_full_read_no_extended_window_mode, _build_one_full_read_with_extended_window_mode
 
 
 class TestBuildOneFullRead(unittest.TestCase):
@@ -23,7 +23,8 @@ class TestBuildOneFullRead(unittest.TestCase):
         self.indel_map = set()
         self.max_ins_at_pos = {}
 
-        result = _build_one_full_read(
+        # extended_window_mode disabled
+        result = _build_one_full_read_no_extended_window_mode(
             self.full_read,
             self.full_qualities,
             self.read_query_name,
@@ -31,14 +32,14 @@ class TestBuildOneFullRead(unittest.TestCase):
             self.first_aligned_pos,
             self.last_aligned_pos,
             self.indel_map,
-            self.max_ins_at_pos,
-            False,  # extended_window_mode disabled
+            #self.max_ins_at_pos,
             "-"
         )
 
         # Expected result should be unchanged
         expected_result = ("ACGTACGT", list("FFFFFFFF"))
         self.assertEqual(result, expected_result)
+
     def test_insertion_in_another_read(self):
         """Test when insertion is present in another read."""
         # Setup indel map and max insertions
@@ -54,7 +55,7 @@ class TestBuildOneFullRead(unittest.TestCase):
         }
         self.max_ins_at_pos = {103: 1}  # Maximum insertion length at position 103
 
-        result = _build_one_full_read(
+        result = _build_one_full_read_with_extended_window_mode(
             self.full_read,
             self.full_qualities,
             None,  # No specific read query name for reference sequence processing
@@ -63,7 +64,6 @@ class TestBuildOneFullRead(unittest.TestCase):
             self.last_aligned_pos,
             self.indel_map,
             self.max_ins_at_pos,
-            True,  # extended_window_mode enabled
             "-"     # Insertion from another read
         )
 
@@ -86,7 +86,7 @@ class TestBuildOneFullRead(unittest.TestCase):
         }
         self.max_ins_at_pos = {103: 1}  # Maximum insertion length at position 103
 
-        result = _build_one_full_read(
+        result = _build_one_full_read_no_extended_window_mode(
             self.full_read,
             self.full_qualities,
             None,  # No specific read query name for reference sequence processing
@@ -94,8 +94,7 @@ class TestBuildOneFullRead(unittest.TestCase):
             self.first_aligned_pos,
             self.last_aligned_pos,
             self.indel_map,
-            self.max_ins_at_pos,
-            False,  # extended_window_mode disabled
+            #self.max_ins_at_pos,
             "-"     # Insertion from another read
         )
 
@@ -109,7 +108,7 @@ class TestBuildOneFullRead(unittest.TestCase):
         self.indel_map = {(self.read_query_name, 100, self.full_read_cigar_hash, 103, 1, False)}
         self.max_ins_at_pos = {103: 1}
 
-        result = _build_one_full_read(
+        result = _build_one_full_read_with_extended_window_mode(
             self.full_read,
             self.full_qualities,
             None,  # No specific read query name for reference sequence processing
@@ -118,7 +117,6 @@ class TestBuildOneFullRead(unittest.TestCase):
             self.last_aligned_pos,
             self.indel_map,
             self.max_ins_at_pos,
-            True,  # extended_window_mode disabled
             "X"  # Insertion from this read
         )
 
@@ -132,7 +130,7 @@ class TestBuildOneFullRead(unittest.TestCase):
         self.indel_map = {(self.read_query_name, 100, self.full_read_cigar_hash, 103, 1, False)}
         self.max_ins_at_pos = {103: 1}
 
-        result = _build_one_full_read(
+        result = _build_one_full_read_no_extended_window_mode(
             self.full_read,
             self.full_qualities,
             None,  # No specific read query name for reference sequence processing
@@ -140,8 +138,7 @@ class TestBuildOneFullRead(unittest.TestCase):
             self.first_aligned_pos,
             self.last_aligned_pos,
             self.indel_map,
-            self.max_ins_at_pos,
-            False,  # extended_window_mode disabled
+            #self.max_ins_at_pos,
             "X"  # Insertion from this read
         )
 
@@ -154,7 +151,7 @@ class TestBuildOneFullRead(unittest.TestCase):
         # Enable extended window mode and use '-' as insertion character
         insertion_char = "-"
 
-        result = _build_one_full_read(
+        result = _build_one_full_read_with_extended_window_mode(
             list("ACGTACGT"),  # Reference sequence as input for extended mode
             list("FFFFFFFF"),
             None,  # No specific read query name for reference sequence processing
@@ -163,7 +160,6 @@ class TestBuildOneFullRead(unittest.TestCase):
             108,   # End of extended window (adjust as needed)
             set(),  # Empty indel map for reference sequence processing
             {},     # No max insertions for reference sequence processing
-            True,   # extended_window_mode enabled
             insertion_char
         )
 

@@ -14,7 +14,7 @@ def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
         f.writelines("%s\n" % l for l in lines)
 
-def _calc_via_pileup(samfile, reference_name, maximum_reads):
+def _calc_via_pileup_new(samfile, reference_name, maximum_reads):
     budget = defaultdict(int)
     max_ins_at_pos = defaultdict(int)
     indel_map = set()
@@ -56,7 +56,7 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
     return budget, indel_map, max_ins_at_pos
 
 
-def _calc_via_pileup_old(samfile, reference_name, maximum_reads):
+def _calc_via_pileup(samfile, reference_name, maximum_reads):
     budget = dict()
     max_ins_at_pos = dict()
     indel_map = set() # TODO quick fix because pileup created duplicates; why?
@@ -104,7 +104,7 @@ def _calc_via_pileup_old(samfile, reference_name, maximum_reads):
 
     return budget, indel_map, max_ins_at_pos
 
-def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[str],
+def _build_one_full_read_new(full_read: list[str], full_qualities: list[int]|list[str],
     read_query_name: str|None, full_read_cigar_hash: str|None, first_aligned_pos,
     last_aligned_pos, indel_map, max_ins_at_pos,
     extended_window_mode: bool, insertion_char: str) -> tuple[str, list[int]]:
@@ -171,7 +171,84 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
     return full_read, full_qualities
 
 
-def _build_one_full_read_old(full_read: list[str], full_qualities: list[int]|list[str],
+def _build_one_full_read_no_extended_window_mode(full_read: list[str], full_qualities: list[int] | list[str],
+                                      read_query_name: str | None, full_read_cigar_hash: str | None, first_aligned_pos,
+                                      last_aligned_pos, indel_map, insertion_char: str) -> tuple[str, list[int]]:
+    assert insertion_char in ["-", "X"], "Illegal char representation insertion"
+
+    for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
+        if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
+            if indel_len > 0 and is_del == 1:
+                logging.debug(f"[b2w] Del and ins at same position in {read_query_name} @ {ref_pos}")
+
+            if indel_len > 0:
+                for _ in range(indel_len):
+                    full_read.pop(ref_pos + 1 - first_aligned_pos)
+                    if full_qualities is not None:
+                        full_qualities.pop(ref_pos + 1 - first_aligned_pos)
+
+            if is_del == 1:  # if del
+                full_read.insert(ref_pos - first_aligned_pos, "-")
+                if full_qualities is not None:
+                    full_qualities.insert(ref_pos - first_aligned_pos, "2")
+
+    full_read = "".join(full_read)
+    return full_read, full_qualities
+
+def _build_one_full_read_with_extended_window_mode(full_read: list[str], full_qualities: list[int] | list[str],
+                                        read_query_name: str | None, full_read_cigar_hash: str | None, first_aligned_pos,
+                                        last_aligned_pos, indel_map, max_ins_at_pos, insertion_char: str) -> tuple[str, list[int]]:
+    assert insertion_char in ["-", "X"], "Illegal char representation insertion"
+
+    all_inserts = {}
+    own_inserts = set()
+    change_in_reference_space_ins = 0
+
+    for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
+        if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
+            if indel_len > 0 and is_del == 1:
+                logging.debug(f"[b2w] Del and ins at same position in {read_query_name} @ {ref_pos}")
+
+            if indel_len > 0:
+                own_inserts.add((ref_pos, indel_len))
+                change_in_reference_space_ins += indel_len
+                all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
+
+            if is_del == 1:  # if del
+                full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
+                if full_qualities is not None:
+                    full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
+
+        if (name != read_query_name or start != first_aligned_pos or cigar_hash != full_read_cigar_hash) and \
+                first_aligned_pos <= ref_pos <= last_aligned_pos and indel_len > 0:
+            all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
+
+    change_in_reference_space = 0
+    own_inserts_pos, own_inserts_len = zip(*own_inserts) if own_inserts else ([], [])
+
+    for pos in sorted(all_inserts):
+        n = all_inserts[pos]
+        if (pos, n) in own_inserts:
+            change_in_reference_space += n
+            continue
+
+        L = max_ins_at_pos[pos]
+        in_idx = pos + 1 - first_aligned_pos + change_in_reference_space
+        if pos in own_inserts_pos:
+            k = own_inserts_len[own_inserts_pos.index(pos)]
+            L -= k
+            in_idx += k
+        for _ in range(L):
+            full_read.insert(in_idx, insertion_char)
+            if full_qualities is not None:
+                full_qualities.insert(in_idx, "2")
+
+        change_in_reference_space += max_ins_at_pos[pos]
+
+    full_read = "".join(full_read)
+    return full_read, full_qualities
+
+def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[str],
     read_query_name: str|None, full_read_cigar_hash: str|None, first_aligned_pos,
     last_aligned_pos, indel_map, max_ins_at_pos,
     extended_window_mode: bool, insertion_char: str) -> tuple[str, list[int]]:
@@ -316,10 +393,21 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
-        full_read, full_qualities = _build_one_full_read(full_read, full_qualities,
-            read.query_name, hashlib.sha1(read.cigarstring.encode()).hexdigest(), first_aligned_pos, last_aligned_pos,
-            indel_map, max_ins_at_pos, extended_window_mode, "-")
-
+        #full_read, full_qualities = _build_one_full_read(full_read, full_qualities,
+        #    read.query_name, hashlib.sha1(read.cigarstring.encode()).hexdigest(), first_aligned_pos, last_aligned_pos,
+        #    indel_map, max_ins_at_pos, extended_window_mode, "-")
+        if extended_window_mode:
+            full_read, full_qualities = _build_one_full_read_with_extended_window_mode(
+                full_read, full_qualities, read.query_name,
+                hashlib.sha1(read.cigarstring.encode()).hexdigest(),
+                first_aligned_pos, last_aligned_pos, indel_map, max_ins_at_pos, "-"
+            )
+        else:
+            full_read, full_qualities = _build_one_full_read_no_extended_window_mode(
+                full_read, full_qualities, read.query_name,
+                hashlib.sha1(read.cigarstring.encode()).hexdigest(),
+                first_aligned_pos, last_aligned_pos, indel_map, "-"
+            )
 
         if (first_aligned_pos + minimum_overlap < window_start + 1 + window_length
                 and last_aligned_pos >= window_start + original_minimum_overlap - 2 # TODO justify 2
