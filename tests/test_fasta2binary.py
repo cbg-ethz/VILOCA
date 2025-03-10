@@ -4,12 +4,12 @@ import sys
 import os
 from io import StringIO
 
-sys.path.append("/Users/lfuhrmann/Documents/Projects/ShoRAH2.0/Code_of_VILOCA/VILOCA/viloca/local_haplotype_inference/use_quality_scores")
-from preparation import load_and_process_reads
-from preparation import load_reference_seq, reference2binary
+#sys.path.append("")
+#from preparation import load_and_process_reads
+#from preparation import load_reference_seq, reference2binary
 
-#from viloca.local_haplotype_inference.use_quality_scores.preparation  import load_and_process_reads
-#from viloca.local_haplotype_inference.use_quality_scores.preparation  import load_reference_seq, reference2binary
+from viloca.local_haplotype_inference.use_quality_scores.preparation  import load_and_process_reads
+from viloca.local_haplotype_inference.use_quality_scores.preparation  import load_reference_seq, reference2binary
 
 
 @pytest.fixture
