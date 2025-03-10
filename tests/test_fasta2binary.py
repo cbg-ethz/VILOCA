@@ -4,32 +4,38 @@ import sys
 import os
 from io import StringIO
 
-from viloca.local_haplotype_inference.use_quality_scores.preparation  import load_and_process_reads
-from viloca.local_haplotype_inference.use_quality_scores.preparation  import load_reference_seq, reference2binary
+sys.path.append("/Users/lfuhrmann/Documents/Projects/ShoRAH2.0/Code_of_VILOCA/VILOCA/viloca/local_haplotype_inference/use_quality_scores")
+from preparation import load_and_process_reads
+from preparation import load_reference_seq, reference2binary
+
+#from viloca.local_haplotype_inference.use_quality_scores.preparation  import load_and_process_reads
+#from viloca.local_haplotype_inference.use_quality_scores.preparation  import load_reference_seq, reference2binary
 
 
 @pytest.fixture
 def sample_fasta():
-    return StringIO(">test_seq\nATCGNATCG\n")
+    return StringIO(">test_seq\nN-ATCGNATCG\n")
 
 def test_load_reference_seq(sample_fasta, tmp_path):
     # Write the sample fasta to a temporary file
     fasta_file = tmp_path / "test.fasta"
     fasta_file.write_text(sample_fasta.getvalue())
 
-    alphabet = "ACGT"
+    alphabet = "ACGT-"
     reference_binary, ref_id = load_reference_seq(str(fasta_file), alphabet)
 
     expected_binary = np.array([
-        [1, 0, 0, 0],  # A
-        [0, 0, 0, 1],  # T
-        [0, 1, 0, 0],  # C
-        [0, 0, 1, 0],  # G
-        [0, 0, 0, 0],  # N
-        [1, 0, 0, 0],  # A
-        [0, 0, 0, 1],  # T
-        [0, 1, 0, 0],  # C
-        [0, 0, 1, 0],  # G
+        [0, 0, 0, 0, 0],  # N
+        [0, 0, 0, 0, 1],  # -
+        [1, 0, 0, 0, 0],  # A
+        [0, 0, 0, 1, 0],  # T
+        [0, 1, 0, 0, 0],  # C
+        [0, 0, 1, 0, 0],  # G
+        [0, 0, 0, 0, 0],  # N
+        [1, 0, 0, 0, 0],  # A
+        [0, 0, 0, 1, 0],  # T
+        [0, 1, 0, 0, 0],  # C
+        [0, 0, 1, 0, 0],  # G
     ])
 
     np.testing.assert_array_equal(reference_binary, expected_binary)
@@ -37,20 +43,20 @@ def test_load_reference_seq(sample_fasta, tmp_path):
     print("Test Passed: Reference sequence loaded and converted to binary correctly.")
 
 def test_reference2binary():
-    alphabet = "ACGT"
+    alphabet = "ACGT-"
     reference_seq = "ATCGNATCG"
     reference_binary = reference2binary(reference_seq, alphabet)
 
     expected_binary = np.array([
-        [1, 0, 0, 0],  # A
-        [0, 0, 0, 1],  # T
-        [0, 1, 0, 0],  # C
-        [0, 0, 1, 0],  # G
-        [0, 0, 0, 0],  # N
-        [1, 0, 0, 0],  # A
-        [0, 0, 0, 1],  # T
-        [0, 1, 0, 0],  # C
-        [0, 0, 1, 0],  # G
+        [1, 0, 0, 0, 0],  # A
+        [0, 0, 0, 1, 0],  # T
+        [0, 1, 0, 0, 0],  # C
+        [0, 0, 1, 0, 0],  # G
+        [0, 0, 0, 0, 0],  # N
+        [1, 0, 0, 0, 0],  # A
+        [0, 0, 0, 1, 0],  # T
+        [0, 1, 0, 0, 0],  # C
+        [0, 0, 1, 0, 0],  # G
     ])
 
     np.testing.assert_array_equal(reference_binary, expected_binary)
@@ -66,6 +72,8 @@ def sample_fasta_file(tmp_path):
         "GCTA\n"
         ">seq3\n"
         "GCTA\n"
+        ">seq4\n"
+        "NN-A\n"
     )
     fasta_file = tmp_path / "test.fasta"
     fasta_file.write_text(fasta_content)
@@ -73,13 +81,13 @@ def sample_fasta_file(tmp_path):
 
 @pytest.fixture
 def sample_qualities_file(tmp_path):
-    qualities = np.array([[40, 40, 40, 40], [30, 30, 30, 30], [20, 20, 20, 20]])
+    qualities = np.array([[40, 40, 40, 40], [30, 30, 30, 30], [20, 20, 20, 20] , [20, 20, 20, 20]])
     qualities_file = tmp_path / "test_qualities.npy"
     np.save(qualities_file, qualities)
     return str(qualities_file)
 
 def test_fasta_to_reads_seq_binary(sample_fasta_file, sample_qualities_file):
-    alphabet = "ACGT"
+    alphabet = "ACGT-"
 
     print("unique_modus=True")
     # Process with old function
@@ -90,27 +98,28 @@ def test_fasta_to_reads_seq_binary(sample_fasta_file, sample_qualities_file):
 
     # Additional checks
     try:
-        assert reads_seq_binary_new.shape == (2, 4, 4)  # 3 sequences, 4 nucleotides, 4 alphabet letters
+        assert reads_seq_binary_new.shape == (3, 4, 5)  # 3 sequences, 4 nucleotides, 4 alphabet letters
         print("Test Passed: Binary sequence shape is correct.")
     except AssertionError:
         print("Test Failed: Binary sequence shape is incorrect.")
 
     try:
-        assert reads_weights_new.shape == (2,)
+        assert reads_weights_new.shape == (3,)
         print("Test Passed: Read weights shape is correct.")
     except AssertionError:
         print("Test Failed: Read weights shape is incorrect.")
 
     try:
-        assert qualities_new.shape == (2, 4)
+        assert qualities_new.shape == (3, 4)
         print("Test Passed: Qualities shape is correct.")
     except AssertionError:
         print("Test Failed: Qualities shape is incorrect.")
 
     # Check if binary representation is correct
     expected_binary = np.array([
-        [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]],  # ATCG
-        [[0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]
+        [[1, 0, 0, 0, 0], [0, 0, 0, 1, 0], [0, 1, 0, 0, 0], [0, 0, 1, 0, 0]],  # ATCG
+        [[0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [0, 0, 0, 1, 0], [1, 0, 0, 0, 0]],  # GCTA
+        [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 1], [1, 0, 0, 0, 0]],  # NN-A
         #[[0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]],  # GCTA
         #[[0, 0, 0, 1], [0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]]   # TGCA
     ])
@@ -131,6 +140,7 @@ def test_fasta_to_reads_seq_binary(sample_fasta_file, sample_qualities_file):
     expected_qualities = np.array([
         [40, 40, 40, 40],
         [25, 25, 25, 25],
+        [20, 20, 20, 20]
         #[20, 20, 20, 20]
         ])
     try:
@@ -148,28 +158,29 @@ def test_fasta_to_reads_seq_binary(sample_fasta_file, sample_qualities_file):
 
     # Additional checks
     try:
-        assert reads_seq_binary_new.shape == (3, 4, 4)  # 3 sequences, 4 nucleotides, 4 alphabet letters
+        assert reads_seq_binary_new.shape == (4, 4, 5)  # 3 sequences, 4 nucleotides, 4 alphabet letters
         print("Test Passed: Binary sequence shape is correct.")
     except AssertionError:
         print("Test Failed: Binary sequence shape is incorrect.")
 
     try:
-        assert reads_weights_new.shape == (3,)
+        assert reads_weights_new.shape == (4,)
         print("Test Passed: Read weights shape is correct.")
     except AssertionError:
         print("Test Failed: Read weights shape is incorrect.")
 
     try:
-        assert qualities_new.shape == (3, 4)
+        assert qualities_new.shape == (4, 4)
         print("Test Passed: Qualities shape is correct.")
     except AssertionError:
         print("Test Failed: Qualities shape is incorrect.")
 
     # Check if binary representation is correct
     expected_binary = np.array([
-        [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]],  # ATCG
-        [[0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]],  # GCTA
-        [[0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0]]  # GCTA
+        [[1, 0, 0, 0, 0], [0, 0, 0, 1, 0], [0, 1, 0, 0, 0], [0, 0, 1, 0, 0]],  # ATCG
+        [[0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [0, 0, 0, 1, 0], [1, 0, 0, 0, 0]],  # GCTA
+        [[0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [0, 0, 0, 1, 0], [1, 0, 0, 0, 0]] , # GCTA
+        [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 1], [1, 0, 0, 0, 0]],  # NN-A
         #[[0, 0, 0, 1], [0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]]   # TGCA
     ])
     try:
@@ -186,7 +197,7 @@ def test_fasta_to_reads_seq_binary(sample_fasta_file, sample_qualities_file):
         print("Test Failed: Weights are not all ones for unique sequences.")
 
     # Check if qualities are correct
-    expected_qualities = np.array([[40, 40, 40, 40], [30, 30, 30, 30], [20, 20, 20, 20]])
+    expected_qualities = np.array([[40, 40, 40, 40], [30, 30, 30, 30], [20, 20, 20, 20] , [20, 20, 20, 20]])
     try:
         np.testing.assert_array_equal(qualities_new, expected_qualities)
         print("Test Passed: Qualities are correct.")
