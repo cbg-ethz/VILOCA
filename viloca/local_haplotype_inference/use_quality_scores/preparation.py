@@ -30,7 +30,10 @@ def process_reads_non_unique(fname_fasta, fname_qualities, alphabet):
 
     for idx, seq in enumerate(SeqIO.parse(fname_fasta, "fasta")):
         seq_str = str(seq.seq)
-        binary_seq = np.eye(len(alphabet))[np.array([alphabet_dict.get(n, -1) for n in seq_str])]
+        indices = np.array([alphabet_dict.get(n, -1) for n in seq_str])
+        valid_mask = indices != -1
+        binary_seq = np.zeros((len(seq_str), len(alphabet)))
+        binary_seq[valid_mask, indices[valid_mask]] = 1
         reads_seq_binary.append(binary_seq)
         read_mapping.append((seq.id, 1, []))  # (id, weight, identical_reads)
 
@@ -53,7 +56,12 @@ def process_reads_unique(fname_fasta, fname_qualities, alphabet):
     for idx, seq in enumerate(SeqIO.parse(fname_fasta, "fasta")):
         seq_str = str(seq.seq)
         if seq_str not in unique_reads:
-            binary_seq = np.eye(len(alphabet))[np.array([alphabet_dict.get(n, -1) for n in seq_str])]
+
+            indices = np.array([alphabet_dict.get(n, -1) for n in seq_str])
+            valid_mask = indices != -1
+            binary_seq = np.zeros((len(seq_str), len(alphabet)))
+            binary_seq[valid_mask, indices[valid_mask]] = 1
+
             unique_reads[seq_str] = {
                 'binary': binary_seq,
                 'quality': qualities[idx],
