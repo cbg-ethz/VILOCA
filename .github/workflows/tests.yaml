@@ -24,7 +24,7 @@ jobs:
       - name: Compile Rust Library
         run: |
           pip install maturin
-          maturin develop
+          maturin build
 
       - name: Run test cases
         run: |
