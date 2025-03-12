@@ -17,15 +17,19 @@ jobs:
         run: |
           python -m venv .venv
           source .venv/bin/activate
-
-      - name: Install Maturin
-        run: |
           pip install maturin
 
       - name: Compile Rust Library
         run: |
+          source .venv/bin/activate
           maturin develop
 
+      - name: Install Test Dependencies
+        run: |
+          source .venv/bin/activate
+          pip install pytest
+
       - name: Run test cases
-        id: hello
-        uses: ./
+        run: |
+          source .venv/bin/activate
+          python -m pytest tests
