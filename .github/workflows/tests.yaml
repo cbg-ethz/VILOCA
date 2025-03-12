@@ -21,18 +21,11 @@ jobs:
         run: |
           poetry install
 
-      - name: Create and Activate Virtual Environment
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-
       - name: Compile Rust Library
         run: |
-          source .venv/bin/activate
           pip install maturin
           maturin develop
 
       - name: Run test cases
         run: |
-          source .venv/bin/activate
           python -m pytest tests
