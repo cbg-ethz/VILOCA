@@ -7,6 +7,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x' # Specify the Python version you need
+
+      - name: Install Maturin
+        run: |
+          pip install maturin
+
+      - name: Compile Rust Library
+        run: |
+          maturin develop
+
       - name: Run test cases
         id: hello
         uses: ./
