@@ -35,7 +35,7 @@ edition = "2021"
 mock_use_standalone_module = true
 
 [build-system]
-requires = ["maturin>=0.14"]
-build-backend = "maturin.build_backend.MaturinBuildBackend"
-#requires = ["poetry-core>=1.0.7", "setuptools>=60", "wheel", "pybind11~=2.9.0","maturin>=0.14.0"]
-#build-backend = "poetry.core.masonry.api"
+#requires = ["maturin>=0.14"]
+#build-backend = "maturin.build_backend.MaturinBuildBackend"
+requires = ["poetry-core>=1.0.7", "setuptools>=60", "wheel", "pybind11~=2.9.0","maturin>=0.14.0"]
+build-backend = "poetry.core.masonry.api"
