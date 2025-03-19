@@ -1,45 +1,12 @@
 on: [push]
 
 jobs:
-  test:
+  tests:
     runs-on: ubuntu-latest
-
+    name: Tests
     steps:
-      # Checkout the code
-      - uses: actions/checkout@v2
-
-      # Set up Python
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-
-      # Install Poetry
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 1.4
-
-      # Cache dependencies
-      - name: Cache dependencies
-        uses: actions/cache@v2
-        with:
-          path: .venv
-          key: pydeps-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            pydeps-
-
-      # Install dependencies
-      - name: Install dependencies
-        run: poetry install --no-interaction
-
-      # Build Rust module using Maturin
-      - name: Build Rust module
-        run: maturin develop --bindings pyo3
-
-      # Build C++ module using custom build script
-      - name: Build C++ module
-        run: python build.py
-
-      # Run tests
-      - name: Run tests
-        run: poetry run pytest
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Run test cases
+        id: hello
+        uses: ./
