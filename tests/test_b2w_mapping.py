@@ -36,10 +36,10 @@ class MockAlignedSegment:
         cnt = self.reference_start
         for i in self.cigartuples:
             if i[0] == 1: # insert TODO Justify -1
-                indels_map.append((self.query_name, self.reference_start, hashlib.sha1(self.cigarstring.encode()).hexdigest(), cnt-1, i[1], 0)) # cnt-1
+                indels_map.append((self.query_name, self.reference_start, hashlib.md5(self.cigarstring.encode()).hexdigest(), cnt-1, i[1], 0)) # cnt-1
             elif i[0] == 2: # del
                 for k in range(i[1]):
-                    indels_map.append((self.query_name, self.reference_start, hashlib.sha1(self.cigarstring.encode()).hexdigest(), cnt+k, 0, 1))
+                    indels_map.append((self.query_name, self.reference_start, hashlib.md5(self.cigarstring.encode()).hexdigest(), cnt+k, 0, 1))
                 cnt += i[1]
             else:
                 cnt += i[1]
