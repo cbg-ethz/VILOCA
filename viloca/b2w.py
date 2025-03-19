@@ -10,7 +10,7 @@ import hashlib
 import time
 from collections import defaultdict
 from pathlib import Path
-from viloca_rust import run_one_window_rust
+#from viloca_rust import run_one_window_rust
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
@@ -156,7 +156,8 @@ def _build_one_full_read_with_extended_window_mode(
 
     return full_read_out, full_qualities_out
 
-def _run_one_window(
+"""
+def _run_one_window_rust(
     samfile,
     window_start,
     reference_name,
@@ -219,6 +220,7 @@ def _run_one_window(
     counter = window_start + window_length
 
     return converted_arr, arr_read_qualities_summary, arr_read_summary, pos_filter
+"""
 
 def update_tiling(tiling, extended_window_mode, max_ins_at_pos):
     """
@@ -244,6 +246,177 @@ def update_tiling(tiling, extended_window_mode, max_ins_at_pos):
             updated_tiling.append((window_start,original_window_length, window_length))
 
     return updated_tiling
+
+
+
+def _run_one_window(samfile, window_start, reference_name, window_length,control_window_length,
+        minimum_overlap, permitted_reads_per_location, counter,
+        exact_conformance_fix_0_1_basing_in_reads, indel_map, max_ins_at_pos,
+        extended_window_mode, exclude_non_var_pos_threshold):
+
+    arr = []
+    arr_read_summary = []
+    arr_read_qualities_summary = []
+
+    iter = samfile.fetch(
+        reference_name,
+        window_start, # 0 based
+        window_start + window_length # arg exclusive as per pysam convention
+    )
+
+    # TODO: minimum_overlap
+    # TODO: original_window_length
+    # TODO: window_length
+    original_window_length = window_length
+    window_length = control_window_length
+    original_minimum_overlap = minimum_overlap
+    if extended_window_mode:
+        # this is now done intilaly for all windows
+        #for pos, val in max_ins_at_pos.items():
+        #    if window_start <= pos < window_start + original_window_length:
+        #        window_length += val
+        minimum_overlap *= window_length/original_window_length
+
+    if exclude_non_var_pos_threshold > 0:
+        alphabet = "ACGT-NX"
+        base_pair_distr_in_window = np.zeros((window_length, len(alphabet)), dtype=int)
+
+    for read in iter:
+        if (read.reference_start is None) or (read.reference_end is None):
+            continue
+        first_aligned_pos = read.reference_start # this is 0-based
+        last_aligned_pos = read.reference_end - 1 #reference_end is exclusive
+
+
+        if permitted_reads_per_location[first_aligned_pos] == 0:
+            continue
+        else:
+            permitted_reads_per_location[first_aligned_pos] -= 1
+
+        full_read = list(read.query_sequence)
+        full_qualities = list(read.query_qualities) if read.query_qualities is not None else None
+
+        for ct_idx, ct in enumerate(read.cigartuples):
+            # 0 = BAM_CMATCH, 1 = BAM_CINS, 2 = BAM_CDEL, 7 = BAM_CEQUAL, 8 = BAM_CDIFF
+            if ct[0] in [0,1,2,7,8]:
+                pass
+            elif ct[0] == 4: # 4 = BAM_CSOFT_CLIP
+                for _ in range(ct[1]):
+                    k = 0 if ct_idx == 0 else len(full_read)-1
+                    full_read.pop(k)
+                    if full_qualities is not None:
+                        full_qualities.pop(k)
+
+                if ct_idx != 0 and ct_idx != len(read.cigartuples)-1:
+                    raise ValueError("Soft clipping only possible on the edges of a read.")
+            elif ct[0] == 5: # 5 = BAM_CHARD_CLIP
+                #logging.debug(f"[b2w] Hard clipping detected in {read.query_name}") # commented out because this happens too often
+                pass
+            else:
+                raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
+
+        #full_read, full_qualities = _build_one_full_read(full_read, full_qualities,
+        #    read.query_name, hashlib.sha1(read.cigarstring.encode()).hexdigest(), first_aligned_pos, last_aligned_pos,
+        #    indel_map, max_ins_at_pos, extended_window_mode, "-")
+        if extended_window_mode:
+            full_read, full_qualities = _build_one_full_read_with_extended_window_mode(
+                full_read, full_qualities, read.query_name,
+                hashlib.sha1(read.cigarstring.encode()).hexdigest(),
+                first_aligned_pos, last_aligned_pos, indel_map, max_ins_at_pos, "-"
+            )
+        else:
+            full_read, full_qualities = _build_one_full_read_no_extended_window_mode(
+                full_read, full_qualities, read.query_name,
+                hashlib.sha1(read.cigarstring.encode()).hexdigest(),
+                first_aligned_pos, last_aligned_pos, indel_map, "-"
+            )
+
+        if (first_aligned_pos + minimum_overlap < window_start + 1 + window_length
+                and last_aligned_pos >= window_start + original_minimum_overlap - 2 # TODO justify 2
+                #last_aligned_pos: is in the orginal reference genome space (not in the extended_window_mode-space)
+                and len(full_read) >= minimum_overlap):
+
+            num_inserts_right_of_read = 0
+            num_inserts_left_of_read = 0
+            num_inserts_left_of_window = 0
+            if extended_window_mode:
+                for pos, val in max_ins_at_pos.items():
+                    if last_aligned_pos < pos < window_start + original_window_length:
+                        num_inserts_right_of_read += val
+                    if window_start <= pos < first_aligned_pos:
+                        num_inserts_left_of_read += val
+                    if first_aligned_pos <= pos < window_start:
+                        num_inserts_left_of_window += val
+
+            start_cut_out = window_start + num_inserts_left_of_window - first_aligned_pos
+            end_cut_out = start_cut_out + window_length - num_inserts_left_of_read
+            s = slice(max(0, start_cut_out), end_cut_out)
+
+            cut_out_read = full_read[s]
+            if full_qualities is None:
+                #logging.warning("[b2w] No sequencing quality scores provided in alignment file. Run --sampler learn_error_params.")
+                cut_out_qualities = None
+            else:
+                cut_out_qualities = full_qualities[s]
+
+            k = (window_start + original_window_length - 1 - last_aligned_pos
+                + num_inserts_right_of_read)
+
+            if k > 0:
+                cut_out_read = cut_out_read + k * "N"
+                if full_qualities is not None:
+                    cut_out_qualities = cut_out_qualities + k * [2]
+                    # Phred scores have a minimal value of 2, where an “N” is inserted
+                    # https://www.zymoresearch.com/blogs/blog/what-are-phred-scores
+            if start_cut_out < 0:
+                cut_out_read = (-start_cut_out + num_inserts_left_of_read) * "N" + cut_out_read
+                if full_qualities is not None:
+                    cut_out_qualities = (-start_cut_out + num_inserts_left_of_read) * [2] + cut_out_qualities
+
+
+            assert len(cut_out_read) == window_length, (
+                "read unequal window size",
+                read.query_name, first_aligned_pos, cut_out_read, window_start, window_length, read.reference_end, len(cut_out_read)
+            )
+            if cut_out_qualities is not None:
+                assert len(cut_out_qualities) == window_length, (
+                    "quality unequal window size"
+                )
+
+            if exclude_non_var_pos_threshold > 0:
+                for idx, letter in enumerate(cut_out_read):
+                    base_pair_distr_in_window[idx][alphabet.index(letter)] += 1
+
+            c = 0 if exact_conformance_fix_0_1_basing_in_reads == False else 1
+            arr.append([read.query_name, first_aligned_pos + c, np.array(list(cut_out_read))])
+
+            if cut_out_qualities is None:
+                arr_read_qualities_summary = None
+            else:
+                arr_read_qualities_summary.append(np.asarray(cut_out_qualities))
+
+        if read.reference_start >= counter and len(full_read) >= minimum_overlap:
+            arr_read_summary.append(
+                (read.query_name, read.reference_start + 1, read.reference_end, full_read)
+            )
+
+    pos_filter = None
+    if exclude_non_var_pos_threshold > 0 and len(arr) > 0:
+        pos_filter = (1 - np.amax(base_pair_distr_in_window, axis=1) / np.sum(base_pair_distr_in_window, axis=1)
+            >= exclude_non_var_pos_threshold)
+        logging.debug(f"Number of positions removed: {len(pos_filter) - pos_filter.sum()}")
+
+        for idx, (_, _, rd) in enumerate(arr):
+            arr[idx][2] = rd[pos_filter]
+            arr_read_qualities_summary[idx] = arr_read_qualities_summary[idx][pos_filter] # TODO works?
+
+    counter = window_start + window_length
+
+    # TODO move out of this function
+    convert_to_printed_fmt = lambda x: [f'>{k[0]} {k[1]}\n{"".join(k[2])}' for k in x]
+
+#    return convert_to_printed_fmt(arr), arr_read_qualities_summary, arr_read_summary, counter, window_length, pos_filter
+    return convert_to_printed_fmt(arr), arr_read_qualities_summary, arr_read_summary, pos_filter
 
 
 def parallel_run_one_window(
