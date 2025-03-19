@@ -66,95 +66,83 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
     return budget, indel_map, max_ins_at_pos
 
 
-def _build_one_full_read_no_extended_window_mode(
-    full_read: List[str],
-    full_qualities: Union[List[int], List[str], None],
-    read_query_name: str | None,
-    full_read_cigar_hash: str | None,
-    first_aligned_pos: int,
-    last_aligned_pos: int,
-    indel_map: List[Tuple[str, int, str, int, int, int]],
-    insertion_char: str
-) -> Tuple[str, List[int]]:
-    """
-    Builds a full read sequence without extended window mode, handling indels.
-    Args:
-        full_read: List of characters representing the read sequence.
-        full_qualities: Optional list of quality scores (ints or strs).
-        read_query_name: Name of the read (or None).
-        full_read_cigar_hash: Hash of the CIGAR string (or None).
-        first_aligned_pos: First aligned position.
-        last_aligned_pos: Last aligned position (unused).
-        indel_map: List of tuples (name, start, cigar_hash, ref_pos, indel_len, is_del).
-        insertion_char: Character to insert for deletions ("-" or "X").
-    Returns:
-        Tuple of (full read string, quality scores as list of ints).
-    """
-    # Import inside function to avoid circular dependency
-    from viloca_rust import build_one_full_read_no_extended_window_mode_rust
-
+def _build_one_full_read_no_extended_window_mode(full_read: list[str], full_qualities: list[int] | list[str],
+                                      read_query_name: str | None, full_read_cigar_hash: str | None, first_aligned_pos,
+                                      last_aligned_pos, indel_map, insertion_char: str) -> tuple[str, list[int]]:
     assert insertion_char in ["-", "X"], "Illegal char representation insertion"
 
-    # Convert full_qualities to strings if present, None otherwise
-    qualities_in = [str(q) for q in full_qualities] if full_qualities is not None else None
+    for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
+        if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
+            if indel_len > 0 and is_del == 1:
+                logging.debug(f"[b2w] Del and ins at same position in {read_query_name} @ {ref_pos}")
 
-    # Call Rust function
-    full_read_out, full_qualities_out = build_one_full_read_no_extended_window_mode_rust(
-        first_aligned_pos,        # Position 1 (matches Rust)
-        last_aligned_pos,         # Position 2 (matches Rust)
-        full_read,                # Position 3 (matches Rust)
-        indel_map,                # Position 4 (matches Rust)
-        insertion_char,           # Position 5 (matches Rust)
-        qualities_in,             # Position 6 (matches Rust)
-        read_query_name,          # Position 7 (matches Rust)
-        full_read_cigar_hash      # Position 8 (matches Rust)
-    )
+            if indel_len > 0:
+                for _ in range(indel_len):
+                    full_read.pop(ref_pos + 1 - first_aligned_pos)
+                    if full_qualities is not None:
+                        full_qualities.pop(ref_pos + 1 - first_aligned_pos)
 
-    # Convert qualities back to ints if present
-    full_qualities_out = (
-        [int(q) for q in full_qualities_out] if full_qualities_out is not None else None
-    )
+            if is_del == 1:  # if del
+                full_read.insert(ref_pos - first_aligned_pos, "-")
+                if full_qualities is not None:
+                    full_qualities.insert(ref_pos - first_aligned_pos, "2")
 
-    return full_read_out, full_qualities_out
+    full_read = "".join(full_read)
+    return full_read, full_qualities
 
+def _build_one_full_read_with_extended_window_mode(full_read: list[str], full_qualities: list[int] | list[str],
+                                        read_query_name: str | None, full_read_cigar_hash: str | None, first_aligned_pos,
+                                        last_aligned_pos, indel_map, max_ins_at_pos, insertion_char: str) -> tuple[str, list[int]]:
+    assert insertion_char in ["-", "X"], "Illegal char representation insertion"
 
-def _build_one_full_read_with_extended_window_mode(
-    full_read: list[str],
-    full_qualities: list[int] | list[str],
-    read_query_name: str | None,
-    full_read_cigar_hash: str | None,
-    first_aligned_pos: int,
-    last_aligned_pos: int,
-    indel_map: list[tuple[str, int, str, int, int, int]],
-    max_ins_at_pos: dict[int, int],
-    insertion_char: str
-) -> tuple[str, list[int]]:
-    """Wrapper for Rust implementation of extended window mode read building."""
-    # Import inside function to avoid circular dependency
-    from viloca_rust import build_one_full_read_with_extended_window_mode_rust
+    all_inserts = {}
+    own_inserts = set()
+    change_in_reference_space_ins = 0
 
-    # Convert qualities to strings if present
-    qualities_in = [str(q) for q in full_qualities] if full_qualities is not None else None
+    for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
+        if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
+            if indel_len > 0 and is_del == 1:
+                logging.debug(f"[b2w] Del and ins at same position in {read_query_name} @ {ref_pos}")
 
-    # Call Rust function
-    full_read_out, full_qualities_out = build_one_full_read_with_extended_window_mode_rust(
-        first_aligned_pos,
-        last_aligned_pos,
-        full_read,
-        indel_map,
-        max_ins_at_pos,
-        insertion_char,
-        qualities_in,
-        read_query_name,
-        full_read_cigar_hash
-    )
+            if indel_len > 0:
+                own_inserts.add((ref_pos, indel_len))
+                change_in_reference_space_ins += indel_len
+                all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
 
-    # Convert qualities back to ints if present
-    full_qualities_out = (
-        [int(q) for q in full_qualities_out] if full_qualities_out is not None else None
-    )
+            if is_del == 1:  # if del
+                full_read.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "-")
+                if full_qualities is not None:
+                    full_qualities.insert(ref_pos - first_aligned_pos + change_in_reference_space_ins, "2")
 
-    return full_read_out, full_qualities_out
+        if (name != read_query_name or start != first_aligned_pos or cigar_hash != full_read_cigar_hash) and \
+                first_aligned_pos <= ref_pos <= last_aligned_pos and indel_len > 0:
+            all_inserts[ref_pos] = max_ins_at_pos[ref_pos]
+
+    change_in_reference_space = 0
+    own_inserts_pos, own_inserts_len = zip(*own_inserts) if own_inserts else ([], [])
+
+    for pos in sorted(all_inserts):
+        n = all_inserts[pos]
+        if (pos, n) in own_inserts:
+            change_in_reference_space += n
+            continue
+
+        L = max_ins_at_pos[pos]
+        in_idx = pos + 1 - first_aligned_pos + change_in_reference_space
+        if pos in own_inserts_pos:
+            k = own_inserts_len[own_inserts_pos.index(pos)]
+            L -= k
+            in_idx += k
+        for _ in range(L):
+            full_read.insert(in_idx, insertion_char)
+            if full_qualities is not None:
+                full_qualities.insert(in_idx, "2")
+
+        change_in_reference_space += max_ins_at_pos[pos]
+
+    full_read = "".join(full_read)
+    return full_read, full_qualities
+
 
 """
 def _run_one_window_rust(
