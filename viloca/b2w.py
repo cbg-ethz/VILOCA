@@ -4,7 +4,7 @@ from viloca.tiling import TilingStrategy, EquispacedTilingStrategy
 import numpy as np
 import math
 import logging
-from multiprocessing import Process, cpu_count
+from multiprocessing import Pool, cpu_count
 import os
 import hashlib
 import time
@@ -321,13 +321,13 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
         if extended_window_mode:
             full_read, full_qualities = _build_one_full_read_with_extended_window_mode(
                 full_read, full_qualities, read.query_name,
-                hashlib.sha1(read.cigarstring.encode()).hexdigest(),
+                hashlib.md5(read.cigarstring.encode()).hexdigest(),
                 first_aligned_pos, last_aligned_pos, indel_map, max_ins_at_pos, "-"
             )
         else:
             full_read, full_qualities = _build_one_full_read_no_extended_window_mode(
                 full_read, full_qualities, read.query_name,
-                hashlib.sha1(read.cigarstring.encode()).hexdigest(),
+                hashlib.md5(read.cigarstring.encode()).hexdigest(),
                 first_aligned_pos, last_aligned_pos, indel_map, "-"
             )
 
@@ -600,6 +600,9 @@ def parallel_run_one_window(
             _write_to_file([line], f"coverage_{idx}.txt")
 
 
+def run_window_wrapper(args):
+    return parallel_run_one_window(*args)
+
 
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     win_min_ext: float, maximum_reads: int, minimum_reads: int,
@@ -674,37 +677,42 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     # counter = window_start - 1 + control_window_length, # make 0 based
     counter_list = [0] + [window_start - 1 + control_window_length for (window_start, window_length, control_window_length) in tiling]
 
-    all_processes = []
+    process_args = []
     for idx, (window_start, window_length, control_window_length) in enumerate(tiling):
         counter = counter_list[idx]
         if not (reuse_files and os.path.isfile(f"coverage_{idx}.txt")):
-            p = Process(
-                target=parallel_run_one_window,
-                args=(
-                    reference_filename,
-                    minimum_reads,
-                    tiling,
-                    region_end,
-                    idx,
-                    window_start, # 1-based
-                    window_length,
-                    control_window_length,
-                    alignment_file,
-                    reference_name,
-                    win_min_ext,
-                    permitted_reads_per_location,
-                    counter, # 0-based
-                    exact_conformance_fix_0_1_basing_in_reads,
-                    indel_map,
-                    max_ins_at_pos, # 0-based
-                    extended_window_mode,
-                    exclude_non_var_pos_threshold,
-                    )
-                )
-            all_processes.append(p)
+            args = (
+                reference_filename,
+                minimum_reads,
+                tiling,
+                region_end,
+                idx,
+                window_start,
+                window_length,
+                control_window_length,
+                alignment_file,
+                reference_name,
+                win_min_ext,
+                permitted_reads_per_location,
+                counter,
+                exact_conformance_fix_0_1_basing_in_reads,
+                indel_map,
+                max_ins_at_pos,
+                extended_window_mode,
+                exclude_non_var_pos_threshold
+            )
+            process_args.append(args)
         else:
-            logging.info(f'[file already exits] Use window files generated on {time.ctime(Path(f"coverage_{idx}.txt").stat().st_mtime)}')
+            logging.info(f'[file already exists] Using window files generated on {time.ctime(Path(f"coverage_{idx}.txt").stat().st_mtime)}')
 
+
+    max_proc = min(max(cpu_count() - 1, 1), maxthreads)
+    logging.info('CPU(s) count %u, will run %u build_windows', cpu_count(), max_proc)
+
+    with Pool(processes=max_proc) as pool:
+        results = pool.map(run_window_wrapper, process_args)
+
+    """
     for p in all_processes:
       p.start()
 
@@ -713,7 +721,7 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
         if p.exitcode != 0:
             logging.debug("[b2w] A process was killed. Terminating the program.")
             exit(1)
-
+    """
     logging.debug("[b2w] All processes completed successfully.")
 
     samfile.close()
