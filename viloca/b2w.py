@@ -588,8 +588,23 @@ def parallel_run_one_window(
             _write_to_file([line], f"coverage_{idx}.txt")
 
 
+import subprocess
 def run_window_wrapper(args):
-    return parallel_run_one_window(*args)
+    try:
+        return parallel_run_one_window(*args)
+    except subprocess.CalledProcessError as e:
+        # Capture critical error details
+        error_msg = f"""
+        Subprocess failed in window {args[3]} (index {args[4]})
+        Command: {e.cmd}
+        Exit code: {e.returncode}
+        Error output: {e.stderr.decode().strip()}
+        """
+        logging.critical(error_msg)
+
+        # Reraise with context for pytest reporting
+        raise RuntimeError(f"Window processing failed: {error_msg}") from e
+
 
 
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,

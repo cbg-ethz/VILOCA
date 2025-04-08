@@ -169,7 +169,7 @@ def main():
                                 default=True, dest="keep_files", help="keep all intermediate files")
 
     parser_shotgun.add_argument("-t", "--threads", metavar='INT', required=False,
-                            type=int, dest="maxthreads", default=0,
+                            type=int, dest="maxthreads", default=1,
                             help="limit maximum number of parallel threads\n(0: CPUs count-1, n: limit to n)")
 
     parser_shotgun.add_argument("-z", "--insert-file", metavar='INSERT_FILE', type=str,
