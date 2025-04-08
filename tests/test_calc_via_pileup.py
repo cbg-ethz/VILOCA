@@ -61,7 +61,7 @@ class TestCalcViaPileup(unittest.TestCase):
             self.assertEqual(len(indel_map), 2)  # One insertion and one deletion
 
             # Check insertion at position 103 (length 1)
-            cigar_hash = hashlib.sha1("4M1I4M1D4M".encode()).hexdigest()
+            cigar_hash = hashlib.md5("4M1I4M1D4M".encode()).hexdigest()
             self.assertIn(('read1', 100, cigar_hash, 103, 1, False), indel_map)
 
             # Check deletion at position 108 (length 0)
