@@ -10,6 +10,7 @@ import hashlib
 import time
 from collections import defaultdict
 from pathlib import Path
+import re # _build_one_full_read_no_extended_window_mode
 #from viloca_rust import run_one_window_rust
 
 def _write_to_file(lines, file_name):
@@ -65,30 +66,61 @@ def _calc_via_pileup(samfile, reference_name, maximum_reads):
 
     return budget, indel_map, max_ins_at_pos
 
+def _build_one_full_read_no_extended_window_mode(
+    full_read: list[str],
+    full_qualities: list[int] | list[str],
+    read_query_name, # actually not needed
+    cigarstring: str,
+    first_aligned_pos: int,
+    last_aligned_pos, # actually not needed
+    indel_map, # actually not needed
+    insertion_char: str
+) -> tuple[str, list[int]]:
+    assert insertion_char in ["-", "X"], "Illegal insertion char"
 
-def _build_one_full_read_no_extended_window_mode(full_read: list[str], full_qualities: list[int] | list[str],
-                                      read_query_name: str | None, full_read_cigar_hash: str | None, first_aligned_pos,
-                                      last_aligned_pos, indel_map, insertion_char: str) -> tuple[str, list[int]]:
-    assert insertion_char in ["-", "X"], "Illegal char representation insertion"
+    # Parse CIGAR to get insertions and deletions
+    indels = []
+    current_ref_pos = first_aligned_pos
+    current_read_pos = 0  # Track position in the read
+    for (length, op) in re.findall(r'(\d+)([MIDNSHPX=])', cigarstring):
+        length = int(length)
+        if op in {'M', '=', 'X'}:
+            current_read_pos += length
+            current_ref_pos += length
+        elif op == 'I':
+            # Insertion: next 'length' bases are inserted in the read
+            indels.append(('I', current_ref_pos, length, current_read_pos))
+            current_read_pos += length
+        elif op == 'D':
+            # Deletion: 'length' bases are deleted in the reference
+            indels.append(('D', current_ref_pos, length, current_read_pos))
+            current_ref_pos += length
+        elif op == 'N':
+            # Skipped region in reference
+            current_ref_pos += length
+        elif op in {'S', 'H'}:
+            # Soft or hard clip: already in the read, do not change current_read_pos
+            pass
 
-    for name, start, cigar_hash, ref_pos, indel_len, is_del in indel_map:
-        if name == read_query_name and start == first_aligned_pos and cigar_hash == full_read_cigar_hash:
-            if indel_len > 0 and is_del == 1:
-                logging.debug(f"[b2w] Del and ins at same position in {read_query_name} @ {ref_pos}")
-
-            if indel_len > 0:
-                for _ in range(indel_len):
-                    full_read.pop(ref_pos + 1 - first_aligned_pos)
+    # Process indels in reverse order to avoid index shifting
+    for op, ref_pos, length, read_pos in sorted(indels, key=lambda x: -x[3]):  # Sort by read_pos descending
+        if op == 'I':
+            # Remove inserted bases: pop at read_pos, length times
+            # But since we're processing in reverse, and the list is shrinking,
+            # we can just pop at read_pos for each base
+            for _ in range(length):
+                if read_pos < len(full_read):
+                    full_read.pop(read_pos)
                     if full_qualities is not None:
-                        full_qualities.pop(ref_pos + 1 - first_aligned_pos)
-
-            if is_del == 1:  # if del
-                full_read.insert(ref_pos - first_aligned_pos, "-")
+                        full_qualities.pop(read_pos)
+        elif op == 'D':
+            # Insert deletion characters
+            for _ in range(length):
+                full_read.insert(read_pos, '-')
                 if full_qualities is not None:
-                    full_qualities.insert(ref_pos - first_aligned_pos, "2")
+                    full_qualities.insert(read_pos, '2')
 
-    full_read = "".join(full_read)
-    return full_read, full_qualities
+    return ''.join(full_read), full_qualities
 
 def _build_one_full_read_with_extended_window_mode(full_read: list[str], full_qualities: list[int] | list[str],
                                         read_query_name: str | None, full_read_cigar_hash: str | None, first_aligned_pos,
@@ -216,7 +248,6 @@ def _build_one_full_read(full_read: list[str], full_qualities: list[int]|list[st
     return full_read, full_qualities # TODO return same data type twice
 
 
-"""
 def _run_one_window_rust(
     samfile,
     window_start,
@@ -266,6 +297,7 @@ def _run_one_window_rust(
         exclude_non_var_pos_threshold=exclude_non_var_pos_threshold,
         counter=counter,
     )
+    pos_filter = np.array(pos_filter, dtype=bool)
 
     converted_arr = []
     for entry in arr:
@@ -280,7 +312,6 @@ def _run_one_window_rust(
     counter = window_start + window_length
 
     return converted_arr, arr_read_qualities_summary, arr_read_summary, pos_filter
-"""
 
 def update_tiling(tiling, extended_window_mode, max_ins_at_pos):
     """
@@ -387,7 +418,7 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
         else:
             full_read, full_qualities = _build_one_full_read_no_extended_window_mode(
                 full_read, full_qualities, read.query_name,
-                hashlib.md5(read.cigarstring.encode()).hexdigest(),
+                read.cigarstring, #hashlib.md5(read.cigarstring.encode()).hexdigest(),
                 first_aligned_pos, last_aligned_pos, indel_map, "-"
             )
 
@@ -468,7 +499,9 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
 
         for idx, (_, _, rd) in enumerate(arr):
             arr[idx][2] = rd[pos_filter]
-            arr_read_qualities_summary[idx] = arr_read_qualities_summary[idx][pos_filter] # TODO works?
+            if arr_read_qualities_summary[idx] is not None:
+                arr_read_qualities_summary[idx] = arr_read_qualities_summary[idx][pos_filter]
+            #arr_read_qualities_summary[idx] = arr_read_qualities_summary[idx][pos_filter] # TODO works?
 
     counter = window_start + window_length
 
@@ -515,24 +548,42 @@ def parallel_run_one_window(
 
     logging.info(f"Working on window (1-based) @ {window_start+1}")
 
-#    (arr, arr_read_qualities_summary, arr_read_summary,
-#    counter, control_window_length, pos_filter) = _run_one_window(
-    (arr, arr_read_qualities_summary, arr_read_summary,
-     pos_filter) = _run_one_window(
-        samfile,
-        window_start - 1, # make 0 based
-        reference_name,
-        window_length,
-        control_window_length,
-        math.floor(win_min_ext * window_length),
-        dict(permitted_reads_per_location), # copys dict ("pass by value")
-        counter,
-        exact_conformance_fix_0_1_basing_in_reads,
-        indel_map,
-        max_ins_at_pos,
-        extended_window_mode,
-        exclude_non_var_pos_threshold
-    )
+    if extended_window_mode:
+        # TODO: Rust version of the code does not work yet for insertions
+        (arr, arr_read_qualities_summary, arr_read_summary,
+         pos_filter) = _run_one_window(
+            samfile,
+            window_start - 1, # make 0 based
+            reference_name,
+            window_length,
+            control_window_length,
+            math.floor(win_min_ext * window_length),
+            dict(permitted_reads_per_location), # copys dict ("pass by value")
+            counter,
+            exact_conformance_fix_0_1_basing_in_reads,
+            indel_map,
+            max_ins_at_pos,
+            extended_window_mode,
+            exclude_non_var_pos_threshold
+        )
+    else:
+        # _run_one_window_rust
+        (arr, arr_read_qualities_summary, arr_read_summary,
+         pos_filter) = _run_one_window(
+            samfile,
+            window_start - 1, # make 0 based
+            reference_name,
+            window_length,
+            control_window_length,
+            math.floor(win_min_ext * window_length),
+            dict(permitted_reads_per_location), # copys dict ("pass by value")
+            counter,
+            exact_conformance_fix_0_1_basing_in_reads,
+            indel_map,
+            max_ins_at_pos,
+            extended_window_mode,
+            exclude_non_var_pos_threshold
+        )
 
     logging.debug(f"Window length: {control_window_length}")
 
@@ -678,6 +729,21 @@ def run_window_wrapper(args):
         raise RuntimeError(f"Window processing failed: {error_msg}") from e
 
 
+def get_permitted_reads_per_location(samfile, reference_name, maximum_reads):
+    budget = {}
+    for pileupcolumn in samfile.pileup(
+        reference_name,
+        max_depth=1_000_000,
+        stepper="nofilter",
+        ignore_overlaps=False,
+        min_base_quality=0):
+
+        budget[pileupcolumn.reference_pos] = min(
+            pileupcolumn.nsegments,
+            maximum_reads - 1
+        )
+    return budget
+
 
 def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     win_min_ext: float, maximum_reads: int, minimum_reads: int,
@@ -739,11 +805,16 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     tiling = tiling_strategy.get_window_tilings()
     region_end = tiling_strategy.get_region_end()
 
-    permitted_reads_per_location, indel_map, max_ins_at_pos = _calc_via_pileup(
-        samfile,
-        reference_name,
-        maximum_reads
-    )
+    if extended_window_mode:
+        permitted_reads_per_location, indel_map, max_ins_at_pos = _calc_via_pileup(
+            samfile,
+            reference_name,
+            maximum_reads
+        )
+    else:
+        max_ins_at_pos = dict()
+        indel_map = set()
+        permitted_reads_per_location = get_permitted_reads_per_location(samfile, reference_name, maximum_reads)
 
     tiling = update_tiling(tiling, extended_window_mode, max_ins_at_pos)
     #print("indel_map", indel_map)
