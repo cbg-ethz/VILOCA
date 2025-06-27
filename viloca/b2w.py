@@ -384,8 +384,12 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
         else:
             permitted_reads_per_location[first_aligned_pos] -= 1
 
-        full_read = list(read.query_sequence)
-        full_qualities = list(read.query_qualities) if read.query_qualities is not None else None
+        try:
+            full_read = list(read.query_sequence)
+            full_qualities = list(read.query_qualities) if read.query_qualities is not None else None
+        except:
+            logging.debug(f"[b2w] Read  {read.query_name} has no sequence")
+            continue
 
         for ct_idx, ct in enumerate(read.cigartuples):
             # 0 = BAM_CMATCH, 1 = BAM_CINS, 2 = BAM_CDEL, 7 = BAM_CEQUAL, 8 = BAM_CDIFF
@@ -406,9 +410,6 @@ def _run_one_window(samfile, window_start, reference_name, window_length,control
             else:
                 raise NotImplementedError("CIGAR op code found that is not implemented:", ct[0])
 
-        #full_read, full_qualities = _build_one_full_read(full_read, full_qualities,
-        #    read.query_name, hashlib.sha1(read.cigarstring.encode()).hexdigest(), first_aligned_pos, last_aligned_pos,
-        #    indel_map, max_ins_at_pos, extended_window_mode, "-")
         if extended_window_mode:
             full_read, full_qualities = _build_one_full_read_with_extended_window_mode(
                 full_read, full_qualities, read.query_name,
