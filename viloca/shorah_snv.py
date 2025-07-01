@@ -563,7 +563,7 @@ def main(args):
             else:
                 ref_name = "ref"
             ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas")
-            tmp_df.append(get_cooccuring_muts_haplo_df(haplo_filename, ref_name, beg,end,chrom))
+            tmp_df.append(get_cooccuring_muts_haplo_df(haplo_filename, ref_filename, beg,end,chrom))
     pd.concat(tmp_df).to_csv("cooccurring_mutations.csv")
     # finish  write: "cooccurring_mutations.csv"
 
