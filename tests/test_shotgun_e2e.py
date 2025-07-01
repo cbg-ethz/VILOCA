@@ -4,7 +4,7 @@ import os
 import pytest
 import shutil
 
-cwd = "./data_1"
+cwd = "data_1"
 f_path = "work/raw_reads/w-HXB2-2804-3004.extended-ref.fas"
 base_files = []
 
