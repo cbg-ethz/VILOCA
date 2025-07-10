@@ -3,7 +3,7 @@ import os
 import helper_long_deletions
 # TODO run through Python directly
 
-dir = "./data_5"
+dir = "data_5"
 
 def test_long_deletions():
     original = subprocess.run(

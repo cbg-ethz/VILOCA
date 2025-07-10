@@ -36,7 +36,7 @@ def test_equispaced_wrong_incr():
 
 
 def test_primer_init():
-    strategy = tiling.PrimerTilingStrategy("./data_1/scheme.insert.bed")
+    strategy = tiling.PrimerTilingStrategy("data_1/scheme.insert.bed")
     window_tilings = strategy.get_window_tilings()
     first = window_tilings[0]
     last = window_tilings[-1]

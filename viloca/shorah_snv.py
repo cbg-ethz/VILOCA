@@ -556,8 +556,14 @@ def main(args):
 
             file_stem = "w-%s-%s-%s" % (chrom, beg, end)
             haplo_filename = os.path.join(working_dir,"haplotypes/" + file_stem + ".reads-support.fas")
-            ref_name = os.path.join(working_dir, "raw_reads/" +file_stem + ".ref.fas")
-            tmp_df.append(get_cooccuring_muts_haplo_df(haplo_filename, ref_name, beg,end,chrom))
+            if extended_window_mode:
+                ref_name = "extended-ref"
+            elif exclude_non_var_pos_threshold > 0:
+                ref_name = "envp-full-ref"
+            else:
+                ref_name = "ref"
+            ref_filename = os.path.join("raw_reads", f"{file_stem}.{ref_name}.fas")
+            tmp_df.append(get_cooccuring_muts_haplo_df(haplo_filename, ref_filename, beg,end,chrom))
     pd.concat(tmp_df).to_csv("cooccurring_mutations.csv")
     # finish  write: "cooccurring_mutations.csv"
 
