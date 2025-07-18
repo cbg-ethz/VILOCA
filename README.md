@@ -90,11 +90,11 @@ This is the same setup as used in the CI at [`.github/workflows/test.yaml`](.git
 
 ## Profiling
 ```bash
-poetry run python3 -m cProfile -m shorah shotgun ...
+poetry run python3 -m cProfile -m viloca run ...
 ```
 
 ### Applications
 
 You can find several applications of VILOCA at:
 - https://github.com/cbg-ethz/viloca_applications
-- https://github.com/cbg-ethz/DCV-CrPV-cGAS-STING-pathway-data-analysis 
+- https://github.com/cbg-ethz/DCV-CrPV-cGAS-STING-pathway-data-analysis
