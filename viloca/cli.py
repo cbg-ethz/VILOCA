@@ -37,7 +37,6 @@ import logging.handlers
 from viloca import shotgun, shorah_snv
 
 # FIXME can we remove this? @Ivan -> version tag (get through poetry in the future)
-use_pkg_resources = False
 all_dirs = os.path.abspath(__file__).split(os.sep)
 base_dir = os.sep.join(all_dirs[:-all_dirs[::-1].index('viloca')])
 version_fname = os.path.join(base_dir, '.version')
@@ -46,15 +45,16 @@ if os.path.exists(version_fname):
     with open(version_fname, 'r') as version_file:
         __version__ = version_file.read()
 else:
-    # probably installed using setup.py
-    from pkg_resources import (get_distribution, DistributionNotFound)
+    # fallback: determine version via importlib.metadata (PEP 566)
     try:
-        __version__ = get_distribution('viloca').version
-    except DistributionNotFound:
-        __version__ = 'unknown'
-        print("cannot find version", file=sys.stderr)
-    else:
-        use_pkg_resources = True
+        from importlib import metadata as importlib_metadata  # Python ≥3.8
+    except ImportError:
+        import importlib_metadata  # type: ignore
+
+    try:
+        __version__ = importlib_metadata.version("viloca")
+    except importlib_metadata.PackageNotFoundError:
+        __version__ = "unknown"
 
 # manipulate path to import functions
 parent_dir = os.path.join(base_dir, 'src')
