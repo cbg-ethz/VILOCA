@@ -9,7 +9,9 @@ genetic variants present in a mixed sample.
 VILOCA takes an alignment file as input, and subsequently generates mutation calls and local haplotypes.
 
 
-The corresponding manuscript can be found here: https://www.biorxiv.org/content/10.1101/2024.06.06.597712v1
+The corresponding manuscript can be found here: https://academic.oup.com/nargab/article/6/4/lqae152/7912062
+
+Fuhrmann L, Langer B, Topolsky I, Beerenwinkel N. VILOCA: sequencing quality-aware viral haplotype reconstruction and mutation calling for short-read and long-read data. NAR Genomics and Bioinformatics. 2024 Dec;6(4):lqae152.
 
 ---
 
@@ -51,7 +53,7 @@ There are several parameters available:
 
 `-f` [mandatory] reference genome in fasta format for mutation calling  
 
-`-z` path to an (optional) insert file (primer tiling strategy), if available we highly recommend providing this file  
+`-z` path to an file that defines the local regions used to segment the alignment (e.g.,`tests/data_1/scheme.insert.bed`). If this file is not specified, the alignment will be segmented into uniform regions of length defined by the `--windowsize` parameter.
 
 `--mode` mode to use:  
   - `learn_error_params`: model that is learning the error rate from the data  
@@ -71,7 +73,7 @@ There are several parameters available:
 
 `coverage.txt` List of each local region with start and end positions, and number of reads considered in the region.
 
-`cooccurring_mutations.csv` The file contains one row per occurrence of a mutation in each haplotype, listing all haplotypes where a mutation is present. Note that the posterior threshold is not applied here. 
+`cooccurring_mutations.csv` The file contains one row per occurrence of a mutation in each haplotype, listing all haplotypes where a mutation is present. Note that the posterior threshold is not applied here.
 
 ## Development/CI with Docker
 The following command in the root directory will let you interact with the project locally through Docker.
@@ -93,4 +95,6 @@ poetry run python3 -m cProfile -m shorah shotgun ...
 
 ### Applications
 
-You can find several applications of VILOCA at https://github.com/cbg-ethz/viloca_applications.
+You can find several applications of VILOCA at:
+- https://github.com/cbg-ethz/viloca_applications
+- https://github.com/cbg-ethz/DCV-CrPV-cGAS-STING-pathway-data-analysis 
