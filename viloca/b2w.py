@@ -8,10 +8,8 @@ from multiprocessing import Pool, cpu_count
 import os
 import hashlib
 import time
-from collections import defaultdict
 from pathlib import Path
 import re # _build_one_full_read_no_extended_window_mode
-#from viloca_rust import run_one_window_rust
 
 def _write_to_file(lines, file_name):
     with open(file_name, "w") as f:
@@ -859,16 +857,6 @@ def build_windows(alignment_file: str, tiling_strategy: TilingStrategy,
     with Pool(processes=max_proc) as pool:
         results = pool.map(run_window_wrapper, process_args)
 
-    """
-    for p in all_processes:
-      p.start()
-
-    for p in all_processes:
-        p.join()
-        if p.exitcode != 0:
-            logging.debug("[b2w] A process was killed. Terminating the program.")
-            exit(1)
-    """
     logging.debug("[b2w] All processes completed successfully.")
 
     samfile.close()

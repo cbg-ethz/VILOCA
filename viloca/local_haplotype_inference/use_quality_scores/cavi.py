@@ -172,6 +172,7 @@ def run_cavi(
     state_curr_dict.update({"elbo": elbo})
 
     dict_result = {}
+    
     if record_history:
         dict_result.update(
             {
@@ -199,6 +200,7 @@ def run_cavi(
                 "n_cluster": n_cluster,
                 "alpha0": alpha0,
                 "alphabet": alphabet,
+
             }
         )
     dict_result.update(state_curr_dict)
