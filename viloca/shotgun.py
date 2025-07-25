@@ -134,6 +134,15 @@ def b2w_logging(run_settings):
     logging.debug(f'To run standalone: python3 b2w.py {my_arg}')
 
 
+def run_dpm_wrapper(run_set):
+    """Wrapper function for running run_dpm."""
+    try:
+        run_dpm(run_set)
+    except Exception as e:
+        logging.error(f"Error in process for run_set {run_set}: {e}")
+        raise
+
+
 def run_dpm(run_setting):
     """run the dirichlet process clustering
     """
@@ -188,7 +197,8 @@ def run_dpm(run_setting):
                      alphabet = 'ACGT-',
                      unique_modus = unique_modus,
                      convergence_threshold = inference_convergence_threshold,
-                     record_history = record_history
+                     record_history = record_history,
+                     seed=seed,
                      )
 
     elif inference_type == 'learn_error_params':
@@ -201,7 +211,8 @@ def run_dpm(run_setting):
                      alphabet = 'ACGT-',
                      unique_modus = unique_modus,
                      #convergence_threshold = inference_convergence_threshold,
-                     record_history = record_history
+                     record_history = record_history,
+                     seed=seed,
                      )
     logging.debug('Finished sampler')
 
@@ -381,9 +392,6 @@ def move_files_into_dir(dir, files):
             os.remove(f)
 
 
-
-# def main(in_bam, in_fasta, win_length=201, win_shifts=3, region='',
-#         max_coverage=10000, alpha=0.1, keep_files=True, seed=None):
 def main(args):
     """
     Performs the error correction analysis, running diri_sampler
@@ -515,21 +523,20 @@ def main(args):
 
     runlist = win_to_run(alpha, seed, inference_type, n_max_haplotypes, n_mfa_starts, unique_modus, inference_convergence_threshold, record_history, reuse_files)
     logging.info('will run on %d windows', len(runlist))
-    # run diri_sampler on all available processors but one
+    # Determine the number of processes to use
     max_proc = max(cpu_count() - 1, 1)
     if maxthreads:
         max_proc = min(max_proc, maxthreads)
     logging.info('CPU(s) count %u, max thread limit %u, will run %u parallel dpm_sampler', cpu_count(), maxthreads, max_proc)
 
-    all_processes = [Process(target=run_dpm, args=(run_set,)) for run_set in runlist]
-    for p in all_processes:
-        p.start()
-
-    for p in all_processes:
-        p.join()
-        if p.exitcode != 0:
-            logging.debug("[shotgun] A process was killed. Terminating program.")
+    # Use Pool to manage processes
+    with Pool(processes=max_proc) as pool:
+        try:
+            pool.map(run_dpm_wrapper, runlist)
+        except Exception as e:
+            logging.error(f"[shotgun] A process failed: {e}")
             exit(1)
+
 
     logging.debug("[shotgun] All processes completed successfully.")
 

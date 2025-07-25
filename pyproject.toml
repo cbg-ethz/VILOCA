@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "VILOCA"
-version = "1.0.0"
+version = "1.2.0"
 description = "VIral LOcal haplotype reconstruction and mutation CAlling for short and long read data"
 license = "GPL-3.0-only"
 authors = ["Ivan Topolsky", "Benjamin Langer <blanger@student.ethz.ch>, Lara Fuhrmann <lara.fuhrmann@bsse.ethz.ch>"]

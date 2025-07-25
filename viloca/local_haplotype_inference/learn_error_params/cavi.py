@@ -3,6 +3,7 @@ import multiprocessing as mp
 from scipy.special import digamma
 from scipy.stats._multivariate import _lnB as lnB
 from scipy.special import betaln
+from numpy.random import default_rng
 
 # my python scripts
 from . import initialization
@@ -34,11 +35,13 @@ def multistart_cavi(
     reads_weights,
     n_starts,
     output_dir,
-    record_history
+    record_history,
+    seed
 ):
 
     pool = mp.Pool(mp.cpu_count())
     for start in range(n_starts):
+        rng = default_rng(seed=seed+start)
         pool.apply_async(
             run_cavi,
             args=(
@@ -52,7 +55,9 @@ def multistart_cavi(
                 reads_weights,
                 start,
                 output_dir,
-                record_history
+                record_history,
+                rng,
+                seed+start
             ),
             callback=collect_result,
         )
@@ -74,12 +79,16 @@ def run_cavi(
     reads_weights,
     start_id,
     output_dir,
-    record_history
+    record_history,
+    rng,
+    seed_number
 ):
 
     """
     Runs cavi (coordinate ascent variational inference).
     """
+    np.random.seed(seed_number)
+
     dict_result = {
         "run_id": start_id,
         "N": len(reads_list),
@@ -92,7 +101,7 @@ def run_cavi(
     history_elbo = []
 
     state_init_dict = initialization.draw_init_state(
-        K, alpha0, alphabet, reads_list, reference_binary
+        K, alpha0, alphabet, reads_list, reference_binary,rng
     )
     state_init_dict.update(
         {

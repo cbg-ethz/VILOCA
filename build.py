@@ -5,7 +5,7 @@ def build(setup_kwargs):
     ext_modules = [
         Pybind11Extension(
             # NOTE changes in this section MUST be reflect in CMakeLists.txt
-            "libshorah", 
+            "libshorah",
             sources=sorted(glob("lib/src/*.cpp")),
             include_dirs=["lib/include"],
             libraries=["hts"],

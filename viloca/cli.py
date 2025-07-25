@@ -37,7 +37,6 @@ import logging.handlers
 from viloca import shotgun, shorah_snv
 
 # FIXME can we remove this? @Ivan -> version tag (get through poetry in the future)
-use_pkg_resources = False
 all_dirs = os.path.abspath(__file__).split(os.sep)
 base_dir = os.sep.join(all_dirs[:-all_dirs[::-1].index('viloca')])
 version_fname = os.path.join(base_dir, '.version')
@@ -46,15 +45,16 @@ if os.path.exists(version_fname):
     with open(version_fname, 'r') as version_file:
         __version__ = version_file.read()
 else:
-    # probably installed using setup.py
-    from pkg_resources import (get_distribution, DistributionNotFound)
+    # fallback: determine version via importlib.metadata (PEP 566)
     try:
-        __version__ = get_distribution('viloca').version
-    except DistributionNotFound:
-        __version__ = 'unknown'
-        print("cannot find version", file=sys.stderr)
-    else:
-        use_pkg_resources = True
+        from importlib import metadata as importlib_metadata  # Python ≥3.8
+    except ImportError:
+        import importlib_metadata  # type: ignore
+
+    try:
+        __version__ = importlib_metadata.version("viloca")
+    except importlib_metadata.PackageNotFoundError:
+        __version__ = "unknown"
 
 # manipulate path to import functions
 parent_dir = os.path.join(base_dir, 'src')
@@ -169,7 +169,7 @@ def main():
                                 default=True, dest="keep_files", help="keep all intermediate files")
 
     parser_shotgun.add_argument("-t", "--threads", metavar='INT', required=False,
-                            type=int, dest="maxthreads", default=0,
+                            type=int, dest="maxthreads", default=1,
                             help="limit maximum number of parallel threads\n(0: CPUs count-1, n: limit to n)")
 
     parser_shotgun.add_argument("-z", "--insert-file", metavar='INSERT_FILE', type=str,
@@ -202,10 +202,10 @@ def main():
                                 default=-1, help="Runs exclude non-variable positions mode. Set percentage threshold for exclusion.")
 
     parser_shotgun.add_argument('--reuse_files', action='store_true', dest="reuse_files",
-                                default=-1, help="Enabling this option allows the command line tool to reuse files that were generated in previous runs. When set to true, the tool will check for existing output files and reuse them instead of regenerating the data. This can help improve performance by avoiding redundant file generation processes.")
+                                default=False, help="Enabling this option allows the command line tool to reuse files that were generated in previous runs. When set to true, the tool will check for existing output files and reuse them instead of regenerating the data. This can help improve performance by avoiding redundant file generation processes.")
 
     parser_shotgun.add_argument('--record_history', action='store_true', dest="record_history",
-                                default=-1, help="When enabled, this option saves the history of the parameter values learned during the inference process.")
+                                default=False, help="When enabled, this option saves the history of the parameter values learned during the inference process.")
 
     parser_shotgun.add_argument("--min_windows_coverage", metavar='INT', type=int,
                                 required=False, default=2, dest="min_windows_coverage",

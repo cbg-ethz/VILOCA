@@ -4,7 +4,7 @@ import os
 import pytest
 import shutil
 
-cwd = "./data_1"
+cwd = "data_1"
 f_path = "work/raw_reads/w-HXB2-2804-3004.extended-ref.fas"
 base_files = []
 
@@ -45,7 +45,7 @@ def test_e2e_shorah():
     )
 
 def test_e2e_shorah_with_extended_window_mode():
-    cwd_test_e2e_extended_window_mode = "./data_1/test_e2e_extended_window_modee"
+    cwd_test_e2e_extended_window_mode = "./data_1/test_e2e_extended_window_mode"
     # Check if the directory exists, if not, create it
     if not os.path.exists(cwd_test_e2e_extended_window_mode):
         os.makedirs(cwd_test_e2e_extended_window_mode)

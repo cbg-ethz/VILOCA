@@ -31,7 +31,7 @@ def haplotypes_to_fasta(state_curr_dict, output_dir):
         ave_reads = state_curr_dict["weight" + str(k)]
         if ave_reads==0:
             # this haplotype will not be reported as there are no reads
-            # supporting it. 
+            # supporting it.
             continue
 
         head = (
@@ -58,7 +58,7 @@ def summarize_results(
     alphabet,
     reads_seq_binary,
     reads_weights,
-    reads_list,
+    read_mapping,
     reads_log_error_proba,
     reference_binary,
 ):
@@ -89,10 +89,10 @@ def summarize_results(
                 "haplotype" + str(k): unique_haplo[k][0],
                 "approximatePosterior" + str(k): unique_haplo_posterior[k],
                 "assignedUniqueReads"
-                + str(k): get_assigned_unique_reads(unique_cluster, k, reads_list),
+                + str(k): get_assigned_unique_reads(unique_cluster, k, read_mapping),
                 "assignedReads"
-                + str(k): get_assigned_all_reads(unique_cluster, k, reads_list),
-                "weight" + str(k): get_cluster_weight(unique_cluster, k, reads_list),
+                + str(k): get_assigned_all_reads(unique_cluster, k, read_mapping),
+                "weight" + str(k): get_cluster_weight(unique_cluster, k, read_mapping),
             }
         )
 
@@ -118,25 +118,27 @@ def compute_unique_haplo_posterior(unique_mean_h, unique_haplo_var, alphabet):
     return posterior
 
 
-def get_assigned_unique_reads(mean_z, k, reads_list):
-    reads = []
-    for n in range(len(reads_list)):
-        max_val = np.max(mean_z[n])
+def get_assigned_unique_reads(mean_z, k, read_mapping):
+    assigned_reads = []
+    for i, (seq_str, read_info) in enumerate(read_mapping.items()):
+        if k in np.where(mean_z[i] == np.max(mean_z[i]))[0]:
+            assigned_reads.extend([read_id for read_id, _ in read_info])
+    return assigned_reads
 
-        if k in set([i for i in range(len(mean_z[n])) if mean_z[n][i] >= max_val]):
-            reads.append(reads_list[n].id)
-    return reads
+def get_assigned_all_reads(mean_z, k, read_mapping):
+    assigned_reads = []
+    for i, (seq_str, read_info) in enumerate(read_mapping.items()):
+        if k in np.where(mean_z[i] == np.max(mean_z[i]))[0]:
+            assigned_reads.extend([read_id for read_id, _ in read_info])
+    return assigned_reads
 
 
-def get_assigned_all_reads(mean_z, k, reads_list):
-    reads = []
-    for n in range(len(reads_list)):
-        max_val = np.max(mean_z[n])
-
-        if k in set([i for i in range(len(mean_z[n])) if mean_z[n][i] >= max_val]):
-            reads.append(reads_list[n].id)
-            reads = reads + reads_list[n].identical_reads
-    return reads
+def get_cluster_weight(unique_cluster, k, read_mapping):
+    total_weight = 0
+    for i, (seq_str, read_info) in enumerate(read_mapping.items()):
+        if k in np.where(unique_cluster[i] == np.max(unique_cluster[i]))[0]:
+            total_weight += sum(weight for _, weight in read_info)
+    return total_weight
 
 
 def list_duplicates(seq):
@@ -163,20 +165,3 @@ def merge_cluster_assignments(mean_z, unique_haplo):
                 new_cluster[n][k] += mean_z[n][i]
 
     return new_cluster
-
-
-def get_cluster_weight(unique_cluster, k, reads_list):
-    weight = 0
-    for n in range(len(reads_list)):
-        max_val = np.max(unique_cluster[n])
-
-        if k in set(
-            [
-                i
-                for i in range(len(unique_cluster[n]))
-                if unique_cluster[n][i] >= max_val
-            ]
-        ):
-            weight += reads_list[n].weight
-
-    return weight
