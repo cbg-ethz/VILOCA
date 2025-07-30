@@ -49,9 +49,9 @@ If the sequencing quality scores are not trustable, the sequencing error paramet
 
 ### Parameters
 There are several parameters available:  
-`-b` [mandatory] sorted bam format alignment file  
+`-b` [mandatory] Input alignment file in sorted BAM format. The file must contain only primary alignments. Consider using a processing pipeline that filters out secondary and supplementary alignments.   
 
-`-f` [mandatory] reference genome in fasta format for mutation calling  
+`-f` [mandatory] Reference genome in fasta format for mutation calling.  
 
 `--mode` mode to use:  
   - `learn_error_params`: model learning the error rate from the data  
