@@ -656,8 +656,8 @@ def main(args):
                 open(f"raw_reads/{stem}.envp-full-ref.fas"),
                 open(f"raw_reads/{stem}.envp-ref.fas"),
                 f"corrected/{stem}.reads-cor.fas",
-                f"corrected/{stem}.reads-cor.full.fas" 
-            )
+                f"corrected/{stem}.reads-cor.full.fas"
+                )
 
     # Pooled
     b_list = args.b.copy()
