@@ -516,6 +516,7 @@ def main(args):
         sys.exit('The window size must be smaller than the genome region')
 
     logging.info('%s reads are being considered', len(aligned_reads))
+    exit()
 
     ############################################
     # Now the windows and the error correction #
@@ -643,12 +644,20 @@ def main(args):
             for line in cov:
                 window_file, _, _, _, _ = line.rstrip().split("\t")
                 stem = window_file.split(".")[0]
+                # extend haplotypes
                 envp_post.post_process_for_envp(
                     open(f"raw_reads/{stem}.envp-full-ref.fas"),
                     open(f"raw_reads/{stem}.envp-ref.fas"),
                     f"haplotypes/{stem}.reads-support.fas",
                     f"haplotypes/{stem}.reads-support.fas" # overwrite
                 )
+                # extend corrected reads
+                envp_post.post_process_for_envp(
+                open(f"raw_reads/{stem}.envp-full-ref.fas"),
+                open(f"raw_reads/{stem}.envp-ref.fas"),
+                f"corrected/{stem}.reads-cor.fas",
+                f"corrected/{stem}.reads-cor.full.fas" 
+            )
 
     # Pooled
     b_list = args.b.copy()
