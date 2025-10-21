@@ -21,3 +21,8 @@ You can then run `viloca` as follows
     [user@host shotgun_test]$ viloca run -b test_aln.cram -f test_ref.fasta
 
 The output files will be `snv/SNVs_0.010000_final.vcf` and `snv/SNVs_0.010000_final.csv`.
+
+To run the data with the insert file, you need to also set the parameter `--win_min_ext 0.1` as the defined regions are too large for the read length in the sample: 
+```
+viloca run -b test_aln.cram -f test_ref.fasta -z scheme.insert.bed --win_min_ext 0.1
+```
